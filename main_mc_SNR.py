@@ -164,10 +164,10 @@ def main(args):
             disp = ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=drone_class_names)
             disp.plot(ax=ax)
             plt.tight_layout()
-            plt.savefig(os.path.join("temp",f"confusion_matrix_{mc_trial}.png"))
+            plt.savefig(os.path.join("results","temp",f"confusion_matrix_{mc_trial}.png"))
             plt.close()
 
-            text_file = open(os.path.join("temp",f"classification_report_{mc_trial}.txt"), "w")
+            text_file = open(os.path.join("results","temp",f"classification_report_{mc_trial}.txt"), "w")
             text_file.write(classification_report(y_test.ravel(), y_pred.ravel(),target_names=drone_class_names))
             text_file.close()
 
@@ -182,7 +182,7 @@ def main(args):
             # mlflow.log_metric("train_time", end_time-start_time)
             mlflow.log_metrics({"accuracy": results.mean()})
             mlflow.log_metrics({"accuracy_single": results_single.mean()})
-            mlflow.log_artifacts("temp")
+            mlflow.log_artifacts(os.path.join("results","temp"))
 
             mlflow.log_param("random_seed", args.random_seed)
 
@@ -228,5 +228,7 @@ if __name__ == "__main__":
     print(f"Noise Method = {args.noise_method} Noise Color={args.color}")
     print(f"Fusion Method = {args.fusion_method}")
     print(f"SNR = {args.SNR_constraint}")
+
+    os.makedirs(os.path.join("results","temp"))
 
     main(args)

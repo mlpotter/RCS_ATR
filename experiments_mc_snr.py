@@ -54,7 +54,7 @@ snr_constraints = [-20.0,-10.0,0.0,10.0,20.0]
 noises = [("white","random"),("white","constant"),("color","random")]
 jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0)]
 
-fusion_methods = ["average","fusion"]
+fusion_methods = ["average","fusion","max"]
 experiment_name = "radar_target_recognition_snr_with_jitter"
 random_seed = 123
 
@@ -65,7 +65,6 @@ if __name__ == "__main__":
     os.makedirs("logs")
 
     for model_choice in model_choices:
-        for geometry in geometries:
             for fusion_method in fusion_methods:
                 for num_pointsi in num_points:
                     for MC_trialsi in MC_trials:
