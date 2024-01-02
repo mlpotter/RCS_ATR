@@ -62,7 +62,7 @@ previous_runs = get_experiment_df(experiment_name)
 
 if __name__ == "__main__":
     print(experiment_name)
-    os.makedirs("logs")
+    os.makedirs("logs",exist_ok=True)
 
     for model_choice in model_choices:
             for fusion_method in fusion_methods:

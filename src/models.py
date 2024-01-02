@@ -38,7 +38,7 @@ class distributed_classifier(object):
         elif fusion_method == "fusion":
             predictions = np.log(predictions+1e-16).sum(-1).argmax(1,keepdims=True)
         else:
-            pass
+            raise Exception("Not a valid fusion method of multiple radars")
 
         return predictions
 

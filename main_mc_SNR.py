@@ -229,6 +229,6 @@ if __name__ == "__main__":
     print(f"Fusion Method = {args.fusion_method}")
     print(f"SNR = {args.SNR_constraint}")
 
-    os.makedirs(os.path.join("results","temp"))
+    os.makedirs(os.path.join("results","temp"),exist_ok=True)
 
     main(args)
