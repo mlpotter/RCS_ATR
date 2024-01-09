@@ -29,6 +29,10 @@ def get_args_dictionary(file):
             dictionary["mlflow_track"] = "True"
         elif tuple[0] == "no-mlflow_track":
             dictionary["mlflow_track"] = "False"
+        elif tuple[0] == "geometry":
+            dictionary["geometry"] = "True"
+        elif tuple[0] == "no-geometry":
+            dictionary["geometry"] = "False"
         else:
             dictionary[tuple[0]] = tuple[1]
     return dictionary
@@ -52,11 +56,15 @@ model_choices = ["knn","logistic","xgboost","mlp"]
 snr_constraints = [-20.0,-10.0,0.0,10.0,20.0]
 
 noises = [("white","random"),("white","constant"),("color","random")]
-jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0)]
+# jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0)]
+jitter_widths = [(0.0,0.0)]
 
 fusion_methods = ["average","fusion","max"]
-experiment_name = "radar_target_recognition_snr_with_jitter"
+experiment_name = "radar_target_recognition_snr_nogeometry"
 random_seed = 123
+
+geometry_use = "no-geometry"
+mlflow_track = "mlflow_track"
 
 previous_runs = get_experiment_df(experiment_name)
 
@@ -65,53 +73,54 @@ if __name__ == "__main__":
     os.makedirs("logs",exist_ok=True)
 
     for model_choice in model_choices:
-            for fusion_method in fusion_methods:
-                for num_pointsi in num_points:
-                    for MC_trialsi in MC_trials:
-                        for n_radar in n_radars:
-                            for snr_constraint in snr_constraints:
-                                for angle in angles:
+        for fusion_method in fusion_methods:
+            for num_pointsi in num_points:
+                for MC_trialsi in MC_trials:
+                    for n_radar in n_radars:
+                        for snr_constraint in snr_constraints:
+                            for angle in angles:
 
-                                    (azimuth_center,azimuth_spread),(elevation_center,elevation_spread) = angle
+                                (azimuth_center,azimuth_spread),(elevation_center,elevation_spread) = angle
 
-                                    for noise_choices in noises:
-                                        noise_color, noise_method = noise_choices
+                                for noise_choices in noises:
+                                    noise_color, noise_method = noise_choices
 
-                                        for width in jitter_widths:
-                                            azimuth_jitter_width,elevation_jitter_width = width
+                                    for width in jitter_widths:
+                                        azimuth_jitter_width,elevation_jitter_width = width
 
-                                            file = f"--num_points={num_pointsi} "\
-                                            f"--MC_Trials={MC_trialsi} "\
-                                            f"--n_radars={n_radar} "\
-                                            f"--noise_method={noise_method} "\
-                                            f"--color={noise_color} "\
-                                            f"--elevation_center={elevation_center} "\
-                                            f"--elevation_spread={elevation_spread} "\
-                                            f"--azimuth_center={azimuth_center} "\
-                                            f"--azimuth_spread={azimuth_spread} "\
-                                            f"--mlflow_track "\
-                                            f"--single_method=random "\
-                                            f"--SNR_constraint={snr_constraint} "\
-                                            f"--azimuth_jitter_width={azimuth_jitter_width} "\
-                                            f"--elevation_jitter_width={elevation_jitter_width} " \
-                                            f"--azimuth_jitter_bounds=0_180 " \
-                                            f"--elevation_jitter_bounds=-95_95 " \
-                                            f"--model_choice={model_choice} "\
-                                            f"--experiment_name={experiment_name} " \
-                                            f"--fusion_method={fusion_method} "\
-                                            f"--random_seed={random_seed}"
+                                        file = f"--num_points={num_pointsi} "\
+                                        f"--MC_Trials={MC_trialsi} "\
+                                        f"--n_radars={n_radar} "\
+                                        f"--noise_method={noise_method} "\
+                                        f"--color={noise_color} "\
+                                        f"--elevation_center={elevation_center} "\
+                                        f"--elevation_spread={elevation_spread} "\
+                                        f"--azimuth_center={azimuth_center} "\
+                                        f"--azimuth_spread={azimuth_spread} "\
+                                        f"--{geometry_use} "\
+                                        f"--{mlflow_track} "\
+                                        f"--single_method=random "\
+                                        f"--SNR_constraint={snr_constraint} "\
+                                        f"--azimuth_jitter_width={azimuth_jitter_width} "\
+                                        f"--elevation_jitter_width={elevation_jitter_width} " \
+                                        f"--azimuth_jitter_bounds=0_180 " \
+                                        f"--elevation_jitter_bounds=-95_95 " \
+                                        f"--model_choice={model_choice} "\
+                                        f"--experiment_name={experiment_name} " \
+                                        f"--fusion_method={fusion_method} "\
+                                        f"--random_seed={random_seed}"
 
-                                            if previous_runs is not None:
-                                                previous_dict = get_args_dictionary(file)
-                                                # pdb.set_trace()
-                                                if previous_runs.apply(lambda x: x.to_dict() == get_args_dictionary(file),axis=1).sum() >= 1:
-                                                    print("Previous run found with same configuration...")
-                                                    continue
+                                        if previous_runs is not None:
+                                            previous_dict = get_args_dictionary(file)
+                                            # pdb.set_trace()
+                                            if previous_runs.apply(lambda x: x.to_dict() == get_args_dictionary(file),axis=1).sum() >= 1:
+                                                print("Previous run found with same configuration...")
+                                                continue
 
-                                            print(file)
-                                            if blocking:
-                                                os.system(f"python main_mc_SNR.py {file}")
-                                            else:
-                                                file_full = f"python main_mc_SNR.py {file}"
-                                                print(f"sbatch execute.bash '{file_full}'")
-                                                Popen(f"sbatch execute.bash '{file_full}'",shell=True)
+                                        print(file)
+                                        if blocking:
+                                            os.system(f"python main_mc_SNR.py {file}")
+                                        else:
+                                            file_full = f"python main_mc_SNR.py {file}"
+                                            print(f"sbatch execute.bash '{file_full}'")
+                                            Popen(f"sbatch execute.bash '{file_full}'",shell=True)

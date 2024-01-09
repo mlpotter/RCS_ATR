@@ -118,8 +118,8 @@ def main(args):
             dataset_train,dataset_test = dataset_train_test_split(dataset_single)
 
             # convert the dataset dictionaries into numpy arrays with the azimuth and elevation information
-            X_train,y_train = dataset_to_tensor(dataset_train,True)
-            X_test,y_test = dataset_to_tensor(dataset_test,True)
+            X_train,y_train = dataset_to_tensor(dataset_train,args.geometry)
+            X_test,y_test = dataset_to_tensor(dataset_test,args.geometry)
 
             # fit single radar CLF
             clf.fit(X_train, y_train.ravel())
@@ -147,8 +147,8 @@ def main(args):
             dataset_multi["elevation"] = add_jitter(dataset_multi["elevation"],args.elevation_jitter_width,eval(args.elevation_jitter_bounds.split("_")[0]),eval(args.elevation_jitter_bounds.split("_")[1]))
 
 
-            distibuted_clf = distributed_classifier(clf, True)
-            _,y_test = dataset_to_tensor(dataset_multi,True)
+            distibuted_clf = distributed_classifier(clf, args.geometry)
+            _,y_test = dataset_to_tensor(dataset_multi,args.geometry)
             y_pred = distibuted_clf.predict(dataset_multi, fusion_method=args.fusion_method)
             accuracy_distributed = accuracy_score(y_test.ravel(), y_pred.ravel())
             results[mc_trial] = accuracy_distributed
@@ -194,6 +194,7 @@ if __name__ == "__main__":
     parser.add_argument('--MC_Trials',default=10,type=int, help='Number of MC Trials')
     parser.add_argument('--n_radars', default=20,type=int, help='Number of radars in the xy grid')
     parser.add_argument('--mlflow_track', action=argparse.BooleanOptionalAction,default=False,help='Do you wish to track experiments with mlflow? --mlflow_track for yes --no-mlflow_track for no')
+    parser.add_argument('--geometry', action=argparse.BooleanOptionalAction,default=False,help='Do you want az-el measurements in experiments? --geometry for yes --no-geometry for no')
     parser.add_argument("--fusion_method",type=str,default="average",help="how to aggregate predictions of distributed classifier")
     parser.add_argument("--model_choice",type=str,default="xgboost",help="Model to train")
 

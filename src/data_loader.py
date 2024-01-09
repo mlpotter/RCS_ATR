@@ -42,7 +42,7 @@ def DRONE_RCS_CSV_TO_XARRAY(path,visualize=False,verbose=False):
             plt.suptitle(drone_name)
             plt.show()
 
-        if drone_name in ["Mavic_HH","Parrot_HH"]:
+        if drone_name in ["Mavic_HH","Parrot_HH","battery_HH"]:
             continue
 
         if "HH" not in drone_name:

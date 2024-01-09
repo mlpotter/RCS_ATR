@@ -148,7 +148,7 @@ def main():
                              [0,0,0],
                              [0,0,0],
                              [0,0,0],
-                             [0,0,0]])
+                             [5,5,4]])
 
 
     yaw = yaw_matrix(yaws)
@@ -170,6 +170,11 @@ def main():
         ax.set_ylabel("Y")
         ax.set_xlabel("X")
         ax.set_zlabel("Z")
+
+        ax.set_xlim([-10,10])
+        ax.set_ylim([-10,10])
+        ax.set_zlim([-10,10])
+
         ax.set_title(title)
     plt.show()
 
