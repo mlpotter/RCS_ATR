@@ -6,14 +6,14 @@ from src.geometry import *
 # TODO: CLEAN CODE... ERASE WHAT IS NOT NEEDED AND ADD MORE COMMENTS
 def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,pitchs,rolls,radars,coordinate_system="spherical",ax=None):
     # Set up the plot
-    xmax,ymax,_ = radars.max(0)
-    xmin,ymin,_ = radars.min(0)
+    # xmax,ymax,_ = radars.max(0)
+    # xmin,ymin,_ = radars.min(0)
     zmax = translations[:,2].max()
-
-
-
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin,ymax)
+    #
+    #
+    #
+    # ax.set_xlim(xmin, xmax)
+    # ax.set_ylim(ymin,ymax)
     ax.set_zlim(0,zmax)
     # ax.set_aspect('equal', adjustable='box')  # to keep the aspect ratio square
 
@@ -52,7 +52,7 @@ def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,
     roll = roll_matrix(rolls)
     trans = translation_matrix(translations)
 
-    plot_target_frames(ax,trans,roll,pitch,yaw)
+    plot_target_frames(ax,trans,roll,pitch,yaw,length=5)
 
     for i,transi in enumerate(translations):
         ax.plot(transi[0], transi[1], transi[2], 'bo')

@@ -181,22 +181,48 @@ def add_jitter(X,width,lb,ub):
     return X
 
 
-def add_noise_trajectory(X, SNR, cov):
-    N, T,d = X.shape
+# def add_noise_trajectory(X, SNR, cov):
+#     N, T,d = X.shape
+#
+#     if cov is None:
+#         return X
+#
+#     TraceConstraint = (X ** 2).sum(-1) / (10 ** (SNR / 10))
+#     TraceConstraint = np.expand_dims(TraceConstraint, axis=[-1, -2])
+#
+#     # Get the sqrt of the matrix such that M@M.T = C, but scale down to have unit trace
+#     L = np.expand_dims(sqrtm(cov / np.trace(cov)), [0,1])
+#
+#     # noise is M sqrt(Trace Constraint) @ w_k
+#     noise = np.random.multivariate_normal(np.zeros((d,)), cov=np.eye(d), size=(N,T))
+#     noise = np.expand_dims(noise, axis=[-1])
+#     noise = (np.matmul(L, noise) * np.sqrt(TraceConstraint)).squeeze(-1)
+#
+#     X = X + noise
+#
+#     return X
 
+def add_noise_trajectory(X,SNR,cov,n_radars):
+    # X is Number of Trajectores x Number of Time Stpes x (Number of radars * Number of frequencies)
+    N,TN,d = X.shape
+    f = d // n_radars
     if cov is None:
         return X
 
-    TraceConstraint = (X ** 2).sum(-1) / (10 ** (SNR / 10))
-    TraceConstraint = np.expand_dims(TraceConstraint, axis=[-1, -2])
+    noise = np.zeros_like(X)
 
-    # Get the sqrt of the matrix such that M@M.T = C, but scale down to have unit trace
-    L = np.expand_dims(sqrtm(cov / np.trace(cov)), [0,1])
+    for i in range(n_radars):
+        TraceConstraint = (X[:,:,i*f : (i+1)*f]**2).sum(-1) / (10 ** (SNR / 10))
+        TraceConstraint = np.expand_dims(TraceConstraint, axis=[-2, -1])
 
-    # noise is M sqrt(Trace Constraint) @ w_k
-    noise = np.random.multivariate_normal(np.zeros((d,)), cov=np.eye(d), size=(N,T))
-    noise = np.expand_dims(noise, axis=[-1])
-    noise = (np.matmul(L, noise) * np.sqrt(TraceConstraint)).squeeze(-1)
+        L = np.expand_dims(sqrtm(cov / np.trace(cov)), [0,1])
+
+
+        noise_temp = np.random.multivariate_normal(np.zeros((f,)), cov=np.eye(f), size=(N,TN))
+        noise_temp = np.expand_dims(noise_temp, axis=[-1])
+        noise_temp = (np.matmul(L, noise_temp) * np.sqrt(TraceConstraint)).squeeze(-1)
+
+        noise[:, :, i*f : (i+1)*f] = noise_temp
 
     X = X + noise
 

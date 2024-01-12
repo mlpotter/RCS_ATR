@@ -99,9 +99,11 @@ def spherical2cartersian(range_,rho,azimuth,elevation):
 def calculate_3d_angles_ref(translations,yaws,pitchs,rolls, radars,coordinate_system="spherical"):
     """Calculate angles for each point with all four corners."""
 
+    # number of radars x dimension of coordinate (4)
     radars = np.hstack((radars, np.ones((radars.shape[0], 1))))
 
     # compute inverse transforms from radar coordinate frame vector to target coordinate frame vector
+    # number of simulate points x dimension of coordinate (4) x dimension of coordinate (4)
     inv_yaw = inverse_yaw_matrix(yaws)
     inv_pitch = inverse_pitch_matrix(pitchs)
     inv_roll = inverse_roll_matrix(rolls)
