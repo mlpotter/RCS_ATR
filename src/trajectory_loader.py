@@ -323,7 +323,7 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
                 "elevation":elevations,
                 "rho":rhos,
                 "ys":ys,
-                "n_radars":1,
+                "n_radars":N_radars,
                 "n_freq":N_freqs
             }
 
@@ -489,7 +489,7 @@ def main():
                                                verbose=True)
 
     print("MULTI")
-    add_noise_trajectory(dataset_multi["RCS"],SNR=5,cov=covs_single[0],n_radars=num_radars)
+    add_noise_trajectory(dataset_multi["RCS"],SNR=SNR,cov=covs_single[0],n_radars=num_radars)
     simulate_target_gif(time_step_size, vx, yaw_range, pitch_range, roll_range, bounding_box, radars, TN)
 
 if __name__ == "__main__":

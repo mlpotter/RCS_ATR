@@ -2,6 +2,7 @@
 import numpy as np
 
 
+
 class distributed_classifier(object):
     def __init__(self,clf,use_geometry=False):
         self.clf = clf
@@ -43,21 +44,13 @@ class distributed_classifier(object):
         return predictions
 
 class distributed_recursive_classifier(object):
-    def __init__(self,clf,dataset=None,use_geometry=False):
-        self.clf = clf
+    def __init__(self,n_classes,use_geometry=False):
         self.use_geometry = use_geometry
 
-        if dataset is None:
-            self.pc = None
-        else:
-            values,counts = np.unique(dataset["ys"].ravel(),return_counts=True)
-            self.pc = counts/np.sum(counts)
+        self.n_classes = n_classes
+        self.pc = 1/self.n_classes
 
-        self.n_classes = len(self.pc)
-        self.eps = 0.4
-        self.A = np.ones((self.n_classes,self.n_classes))* self.eps#np.eye(self.n_classes)
-        np.fill_diagonal(self.A,1-(self.n_classes-1)*self.eps)
-    def predict_instant(self,dataset,t=0,fusion_method="average"):
+    def predict_instant(self,clf,dataset,t=0,fusion_method="average"):
         n_radars = dataset["n_radars"]
         n_freq = dataset["n_freq"]
 
@@ -76,7 +69,7 @@ class distributed_recursive_classifier(object):
                 elevation_i = elevation[:, [i]]
                 X = np.hstack((X,azimuth_i,elevation_i))
 
-            y_pred = self.clf.predict_proba(X)
+            y_pred = clf.predict_proba(X)
 
             predictions[:,:,i] = y_pred
 
@@ -87,50 +80,44 @@ class distributed_recursive_classifier(object):
             predictions = predictions.max(-1)#.argmax(1,keepdims=True)
 
         elif fusion_method == "fusion":
-            predictions = np.log(predictions+1e-16).sum(-1)#.argmax(1,keepdims=True)
+            # predictions = np.log(predictions+1e-16).sum(-1)#.argmax(1,keepdims=True)
+            num = predictions.prod(-1)
+            den = np.sum(predictions.prod(axis=-1),axis=-1,keepdims=True)
+            predictions = num/den
         else:
             raise Exception("Not a valid fusion method of multiple radars")
 
         return predictions
 
-    def predict(self,dataset,fusion_method="fusion"):
+    def predict(self,clf,dataset,fusion_method="fusion",record=True):
 
         N_traj, N_time, d = dataset["RCS"].shape
 
         # initialize p_cprev_given_zpast as prior for every trajectory
-        p_cprev_given_zpast = np.tile(self.pc,(dataset["RCS"].shape[0],1))
+        p_c_given_past = self.pc #np.tile(self.pc,(dataset["RCS"].shape[0],1))
 
-
+        p_c_over_time =  None
+        if record:
+            # Number of Trajectories x Number of Time Steps x Number of Classes
+            p_c_over_time = np.zeros((N_traj,N_time,self.n_classes))
 
         for t in np.arange(N_time):
-            # Initialize running recursive probability holder matrix
-            p_ccurr_given_zall = np.zeros_like(p_ccurr_given_zcurr)
 
             # Number of Trajectories x Number of Classes
-            p_ccurr_given_zcurr = self.predict_instant(dataset,t=t,fusion_method="average")
+            p_c_given_z = self.predict_instant(clf,dataset,t=t,fusion_method=fusion_method)
 
-            for c in np.arange(self.n_classes):
+            numerator = p_c_given_z * p_c_given_past
 
-                # calculat the whole summation sign
-                summation_term = 0
-                for c_prev in np.arange(self.n_classes):
-                    p_ccurr_given_cprev_num = self.A[c_prev,c]
+            denominator = np.sum(p_c_given_z * p_c_given_past,axis=-1,keepdims=True)
 
-                    # calculate the denominator of the summation
-                    summation_term_den = 0
-                    for c_curr in np.arange(self.n_classes):
+            p_c_given_all = numerator / denominator
 
-                        p_ccurr_given_cprev_den = self.A[c_prev,c_curr]
+            if record:
+                p_c_over_time[:,t,:] = p_c_given_all
 
-                        # Number of Trajectores
-                        summation_term_den += (p_ccurr_given_zcurr[:,c_curr]/self.pc[c_curr] * p_ccurr_given_cprev_den)
+            p_c_given_past = p_c_given_all
 
-                    summation_term += p_cprev_given_zpast[:,c_prev]*(p_ccurr_given_cprev_num/summation_term_den)
-
-                p_ccurr_given_zall[:,c] = p_ccurr_given_zcurr[:,c] / self.pc[c] * summation_term
-
-        return p_ccurr_given_zall
-
+        return p_c_given_all,p_c_over_time
 
 
 
@@ -153,6 +140,8 @@ def main():
 
     import random
 
+    from sklearn.neural_network import MLPClassifier
+
 
     CLASSIFIERS = dict(CLASSIFIERS)
 
@@ -161,15 +150,15 @@ def main():
 
     classifiers_names = ["XGBClassifier","KNeighborsClassifier","LogisticRegression"]
 
-    classifiers = [CLASSIFIERS[name] for name in classifiers_names]  # + [MLPClassifier]
+    classifiers = [CLASSIFIERS[name] for name in classifiers_names]   #+ [MLPClassifier]
 
     DRONE_RCS_FOLDER = "..\Drone_RCS_Measurement_Dataset"
     drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER)
     drone_names = list(drone_rcs_dictionary.keys())
     n_freq = len(drone_rcs_dictionary[drone_names[0]].coords["f[GHz]"])
 
-    xlim = [0, 20];
-    ylim = [0, 20];
+    xlim = [0, 50];
+    ylim = [0, 50];
     zlim = [50, 200];
     bounding_box = np.array([xlim, ylim, zlim])
     yaw_lim = [-np.pi / 5, np.pi / 5];
@@ -184,11 +173,12 @@ def main():
         np.zeros((n_radars,))
     ))
 
-    use_geometry = False
+    use_geometry = True
 
     noise_color="color"
     noise_method="random"
-    SNR_constraint = 1000
+    SNR_constraint = 0
+    num_points = 10000
 
     covs_single = generate_cov(TraceConstraint=1, d=n_freq, N=1,
                                blocks=n_radars, color=noise_color,
@@ -197,7 +187,7 @@ def main():
     dataset_single = RCS_TO_DATASET_Single_Point(drone_rcs_dictionary,
                                           azimuth_center=90,azimuth_spread=180,
                                           elevation_center=0,elevation_spread=190,
-                                          num_points=10000,method="random")
+                                          num_points=num_points,method="random")
 
     dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
 
@@ -235,19 +225,23 @@ def main():
     dataset_single = RCS_TO_DATASET_Single_Point(drone_rcs_dictionary,
                                           azimuth_center=90,azimuth_spread=180,
                                           elevation_center=0,elevation_spread=190,
-                                          num_points=10000,method="random")
+                                          num_points=num_points,method="random")
 
     dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
+
+
+
+
 
     dataset_train, dataset_test = dataset_train_test_split(dataset_single)
 
     #================= TEST DISTRIBUTED RADAR CLASSIFIER =================#
     TN = 50
-    N_traj = 300
+    N_traj = 500
     time_step_size = 0.1
     vx = 50
     yaw_range = pitch_range = roll_range = np.pi/15
-    xlim = [-50, 50];  ylim = [-50, 50]; zlim = [50, 150]
+    xlim = [-50, 50];  ylim = [-50, 50]; zlim = [50, 200]
     bounding_box = np.array([xlim,ylim,zlim])
 
     dataset_multi = RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary=drone_rcs_dictionary,
@@ -260,9 +254,81 @@ def main():
 
     dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"],SNR_constraint,covs_single[0],n_radars)
 
-    dataset_train, dataset_test = dataset_train_test_split(dataset_multi)
-    drc =  distributed_recursive_classifier(clf.models[classifiers_name],dataset_train,use_geometry=False)
-    drc.predict(dataset_test)
+
+    # ============== GENERATE FIGURES ============= #
+    drc =  distributed_recursive_classifier(len(label_encoder.classes_),use_geometry=use_geometry)
+
+    _,pred_logistic_history = drc.predict(clf.models["LogisticRegression"],dataset_multi)
+    _,pred_xgb_history = drc.predict(clf.models["XGBClassifier"],dataset_multi)
+
+    dataset_multi["n_radars"] = 1
+    _,pred_logistic_history_1 = drc.predict(clf.models["LogisticRegression"],dataset_multi)
+    _,pred_xgb_history_1 = drc.predict(clf.models["XGBClassifier"],dataset_multi)
+
+    import matplotlib.pyplot as plt
+    plt.figure()
+    xgb_history = pred_xgb_history.argmax(-1)
+    xgb_accuracy = (xgb_history == dataset_multi["ys"]).mean(0)
+
+    logistic_history = pred_logistic_history.argmax(-1)
+    logistic_accuracy = (logistic_history == dataset_multi["ys"]).mean(0)
+
+    logistic_history_1 = pred_logistic_history_1.argmax(-1)
+    logistic_accuracy_1 = (logistic_history_1 == dataset_multi["ys"]).mean(0)
+
+    xgb_history_1 = pred_xgb_history_1.argmax(-1)
+    xgb_accuracy_1 = (xgb_history_1 == dataset_multi["ys"]).mean(0)
+
+    plt.plot(xgb_accuracy,color="purple",marker="o",linestyle="-")
+    plt.plot(logistic_accuracy,'bx-')
+    plt.plot(xgb_accuracy_1,color="purple",marker="+",linestyle="-")
+    plt.plot(logistic_accuracy_1,'b^-')
+
+
+    plt.ylabel("Accuracy");
+    plt.xlabel("Time Step");
+    plt.legend([f"XGBoost {n_radars}",
+                f"Logistic Regression {n_radars}",
+                f"XGBoost {1}",
+                f"Logistic Regression {1}"])
+
+    plt.title(f"RBC Models - SNR={SNR_constraint}")
+    plt.show()
+
+
+    # =============== visualize fusion differences ======================= #
+    dataset_multi["n_radars"] = radars.shape[0]
+    drc =  distributed_recursive_classifier(len(label_encoder.classes_),use_geometry=use_geometry)
+    _,pred_xgb_history_fuse = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="fusion")
+    _,pred_xgb_history_avg = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="average")
+    _,pred_xgb_history_max = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="max")
+
+
+    plt.figure()
+    xgb_history_fuse = pred_xgb_history_fuse.argmax(-1)
+    xgb_accuracy_fuse = (xgb_history_fuse == dataset_multi["ys"]).mean(0)
+
+    xgb_history_avg = pred_xgb_history_avg.argmax(-1)
+    xgb_accuracy_avg = (xgb_history_avg == dataset_multi["ys"]).mean(0)
+
+    xgb_history_max= pred_xgb_history_max.argmax(-1)
+    xgb_accuracy_max= (xgb_history_max == dataset_multi["ys"]).mean(0)
+
+    plt.plot(xgb_accuracy_fuse,color="purple",marker="o",linestyle="-")
+    plt.plot(xgb_accuracy_avg,color="purple",marker="+",linestyle="-")
+    plt.plot(xgb_accuracy_max,color="purple",marker="x",linestyle="-")
+
+
+
+    plt.ylabel("Accuracy");
+    plt.xlabel("Time Step");
+    plt.legend([f"XGBoost {n_radars} Fuse",
+                f"XGBoost {n_radars} Avg",
+                f"XGBoost {n_radars} Max"])
+
+    plt.title(f"RBC Fusion - SNR={SNR_constraint}")
+    plt.show()
+
 
 
 if __name__ == "__main__":

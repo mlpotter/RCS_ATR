@@ -1,6 +1,5 @@
 import numpy as np
 
-
 # TODO: VECTORIZE YAW PITCH ROLL
 # https://msl.cs.uiuc.edu/planning/node102.html
 #
@@ -136,6 +135,72 @@ def plot_target_frames(ax,trans,roll,pitch,yaw,length=2):
         # yellow is the z axis
         # ax.quiver(tx,ty,tz,radar_positions[i,2,0],radar_positions[i,2,1],radar_positions[i,2,2],color="y")
         ax.quiver(tx,ty,tz,-radar_positions[i,2,0],-radar_positions[i,2,1],-radar_positions[i,2,2],color="y",length=length,linewidth=5)
+
+
+def simulate_target_gif(time_step_size,vx,yaw_range,pitch_range,roll_range,bounding_box,radars,TN):
+    fig = plt.figure(figsize=(15,7))
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+    N_traj = 1
+    photo_dump = os.path.join("..","results","tmp_photo")
+    remove_photo_dump = False
+    os.makedirs(photo_dump,exist_ok=True)
+
+    init_position = np.column_stack((
+        np.random.uniform(bounding_box[0,0], bounding_box[0,1], N_traj),
+        np.random.uniform(bounding_box[1,0], bounding_box[1,1], N_traj),
+        np.random.uniform(bounding_box[2,0], bounding_box[2,1], N_traj)
+    ))
+
+    yaws, pitchs, rolls, translations = simulate_trajectories(init_position, time_step_size, vx, yaw_range, pitch_range,
+                                                            roll_range, TN, N_traj)
+    N_radars = radars.shape[0]
+    radars = np.column_stack((radars,np.ones((N_radars, 1))));
+
+    # number of simulate points x number of time steps x number of radars
+    frames = []
+    for t in range(TN):
+        inv_yaw = inverse_yaw_matrix(yaws[:, t])
+        inv_pitch = inverse_pitch_matrix(pitchs[:, t])
+        inv_roll = inverse_roll_matrix(rolls[:, t])
+        inv_trans = inverse_translation_matrix(translations[:, t, :])
+
+        relative_distances = np.matmul(inv_yaw @ inv_pitch @ inv_roll @ inv_trans, radars.T)
+
+        # number of simulate points  x number of radars x dimension of coordinate (4)
+        relative_distances = relative_distances.transpose(0, 2, 1)
+
+        range_, rho, azimuth, elevation = cartesian2spherical(relative_distances[:, :, 0],
+                                                              relative_distances[:, :, 1],
+                                                              relative_distances[:, :, 2])
+
+        draw_3d_lines_and_points_ref(range_, rho, azimuth, elevation, translations[:,t], yaws[:,t], pitchs[:,t], rolls[:,t], radars[:,:3],
+                                     coordinate_system="spherical", ax=ax)
+
+        filename = os.path.join(photo_dump,f"frame_{t}.png")
+
+        # Optionally, you can add grid lines for better visualization
+        ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+        # Add some labels (optional)
+        ax.set_xlabel("X-axis")
+        ax.set_ylabel("Y-axis")
+        plt.savefig(filename)
+        frames.append(imageio.imread(filename))
+        [line.remove() for line in ax.lines[-N_radars:]]
+
+    plt.close()
+
+    # Save frames as a GIF
+    gif_filename = os.path.join("..","results","target_movement.gif")
+    imageio.mimsave(gif_filename, frames, duration=0.5)  # Adjust duration as needed
+    print(f"GIF saved as '{gif_filename}'")
+
+    if remove_photo_dump:
+        for filename in glob.glob(os.path.join(photo_dump,"frame_*")):
+            os.remove(filename)
+
+
 
 def main():
     import matplotlib.pyplot as plt
