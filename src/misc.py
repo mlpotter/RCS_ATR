@@ -1,10 +1,12 @@
+import numpy
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 from src.geometry import *
 
 # TODO: CLEAN CODE... ERASE WHAT IS NOT NEEDED AND ADD MORE COMMENTS
-def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,pitchs,rolls,radars,coordinate_system="spherical",ax=None):
+def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,pitchs,rolls,radars,coordinate_system="spherical",ax=None,
+                                 plotting_args={"arrow_length": 15, "arrow_linewidth": 2}):
     # Set up the plot
     # xmax,ymax,_ = radars.max(0)
     # xmin,ymin,_ = radars.min(0)
@@ -51,12 +53,11 @@ def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,
     pitch = pitch_matrix(pitchs)
     roll = roll_matrix(rolls)
     trans = translation_matrix(translations)
-
-    plot_target_frames(ax,trans,roll,pitch,yaw,length=5)
+    plot_target_frames(ax,trans,roll,pitch,yaw,length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
 
     for i,transi in enumerate(translations):
         ax.plot(transi[0], transi[1], transi[2], 'bo')
-        ax.text(transi[0], transi[1], transi[2],f'{i}',fontsize=20)
+        # ax.text(transi[0], transi[1], transi[2],f'{i}',fontsize=20)
 
     # recover the radar position in the radar coordinate frame from the target coordinate frame information
     # and relative vector between target and radar
@@ -83,6 +84,11 @@ def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,
     ax.set_ylabel("Y-axis")
 
 
+def radar_grid(n_radars,xlim,ylim):
+    xs,ys = np.linspace(xlim[0],xlim[1],int(np.sqrt(n_radars))),np.linspace(ylim[0],ylim[1],int(np.sqrt(n_radars)))
+    X,Y = numpy.meshgrid(xs,ys)
+
+    return np.column_stack((X.ravel(),Y.ravel(),np.zeros((n_radars,))))
 
 def main():
     import matplotlib as mpl

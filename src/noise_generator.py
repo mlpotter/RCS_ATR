@@ -171,9 +171,7 @@ def add_noise(X,SNR,cov):
 def add_jitter(X,width,lb,ub):
 
 
-    N,d = X.shape
-
-    jitter = np.random.uniform(-width/2,width/2,size=(N,1))
+    jitter = np.random.uniform(-width/2,width/2,size=X)
 
 
     X = np.clip(X + jitter,lb,ub)

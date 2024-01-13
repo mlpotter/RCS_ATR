@@ -142,11 +142,14 @@ def main():
 
     from sklearn.neural_network import MLPClassifier
 
+    from src.trajectory_loader import target_with_predictions_gif
+    from src.misc import radar_grid
+
 
     CLASSIFIERS = dict(CLASSIFIERS)
 
-    np.random.seed(123)
-    random.seed(123)
+    np.random.seed(12300)
+    random.seed(12300)
 
     classifiers_names = ["XGBClassifier","KNeighborsClassifier","LogisticRegression"]
 
@@ -157,23 +160,19 @@ def main():
     drone_names = list(drone_rcs_dictionary.keys())
     n_freq = len(drone_rcs_dictionary[drone_names[0]].coords["f[GHz]"])
 
-    xlim = [0, 50];
-    ylim = [0, 50];
-    zlim = [50, 200];
+    xlim = [-150, 150];  ylim = [-150, 150]; zlim = [200, 300]
+
     bounding_box = np.array([xlim, ylim, zlim])
     yaw_lim = [-np.pi / 5, np.pi / 5];
     pitch_lim = [-np.pi / 5, np.pi / 5]
     roll_lim = [-np.pi / 5, np.pi / 5]
 
-    n_radars = 20
+    n_radars = 4
 
-    radars = np.column_stack((
-        np.random.uniform(xlim[0], xlim[1],n_radars),
-        np.random.uniform(ylim[0], ylim[1], n_radars),
-        np.zeros((n_radars,))
-    ))
 
-    use_geometry = True
+    radars = radar_grid(n_radars=n_radars,xlim=xlim,ylim=ylim)
+
+    use_geometry = False
 
     noise_color="color"
     noise_method="random"
@@ -206,7 +205,7 @@ def main():
     dataset_multi = RCS_TO_DATASET(drone_rcs_dictionary, radars, yaw_lim, pitch_lim, roll_lim, bounding_box,
                                    num_points=100)
 
-    dataset_multi["RCS"] = add_noise_block(dataset_multi["RCS"], SNR_constraint, covs_single[0],
+    dataset_multi["RCS"] = add_noise_block(dataset_multi["RCS"],SNR_constraint, covs_single[0],
                                            n_radars)
 
 
@@ -236,13 +235,14 @@ def main():
     dataset_train, dataset_test = dataset_train_test_split(dataset_single)
 
     #================= TEST DISTRIBUTED RADAR CLASSIFIER =================#
-    TN = 50
-    N_traj = 500
+    TN = 100
+    N_traj = 1000
     time_step_size = 0.1
     vx = 50
-    yaw_range = pitch_range = roll_range = np.pi/15
-    xlim = [-50, 50];  ylim = [-50, 50]; zlim = [50, 200]
+    yaw_range , pitch_range , roll_range = np.pi/8,np.pi/15,0
+    xlim = [-50, 50];  ylim = [-50, 50]; zlim = [150, 300]
     bounding_box = np.array([xlim,ylim,zlim])
+    plotting_args = {"arrow_length": 10, "arrow_linewidth": 2}
 
     dataset_multi = RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary=drone_rcs_dictionary,
                                               time_step_size=time_step_size, vx=vx,
@@ -329,6 +329,8 @@ def main():
     plt.title(f"RBC Fusion - SNR={SNR_constraint}")
     plt.show()
 
+
+    target_with_predictions_gif(dataset_multi,pred_xgb_history_fuse,radars,plotting_args=plotting_args)
 
 
 if __name__ == "__main__":

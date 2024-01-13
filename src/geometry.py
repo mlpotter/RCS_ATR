@@ -122,19 +122,19 @@ def calculate_3d_angles_ref(translations,yaws,pitchs,rolls, radars,coordinate_sy
     # return spherical coordinates
     return range_,rho,azimuth,elevation
 
-def plot_target_frames(ax,trans,roll,pitch,yaw,length=2):
+def plot_target_frames(ax,trans,roll,pitch,yaw,length=2,linewidth=5):
     coordinates = np.eye(3)
     coordinates = np.hstack((coordinates,np.ones((coordinates.shape[0],1))))
     radar_positions = np.matmul(roll @ pitch @ yaw, coordinates.T).transpose(0,2,1)
     for i in range(trans.shape[0]):
         tx, ty, tz,_ = trans[i,:,-1]
         # green is the x axis
-        ax.quiver(tx,ty,tz,radar_positions[i,0,0],radar_positions[i,0,1],radar_positions[i,0,2],color="g",length=length,linewidth=5)
+        ax.quiver(tx,ty,tz,radar_positions[i,0,0],radar_positions[i,0,1],radar_positions[i,0,2],color="g",length=length,linewidth=linewidth)
         # magenta is the y axis
-        ax.quiver(tx,ty,tz,radar_positions[i,1,0],radar_positions[i,1,1],radar_positions[i,1,2],color="m",length=length,linewidth=5)
+        ax.quiver(tx,ty,tz,radar_positions[i,1,0],radar_positions[i,1,1],radar_positions[i,1,2],color="m",length=length,linewidth=linewidth)
         # yellow is the z axis
         # ax.quiver(tx,ty,tz,radar_positions[i,2,0],radar_positions[i,2,1],radar_positions[i,2,2],color="y")
-        ax.quiver(tx,ty,tz,-radar_positions[i,2,0],-radar_positions[i,2,1],-radar_positions[i,2,2],color="y",length=length,linewidth=5)
+        ax.quiver(tx,ty,tz,-radar_positions[i,2,0],-radar_positions[i,2,1],-radar_positions[i,2,2],color="y",length=length,linewidth=linewidth)
 
 
 def simulate_target_gif(time_step_size,vx,yaw_range,pitch_range,roll_range,bounding_box,radars,TN):
