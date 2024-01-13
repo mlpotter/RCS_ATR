@@ -35,7 +35,7 @@ def DRONE_RCS_CSV_TO_XARRAY(path,visualize=False,verbose=False):
         ## make sure consistent organization amongst data csv files...
         data = data.sort_values(by=["f[GHz]", "phi[deg]", "theta[deg]"], ascending=True).reset_index(drop=True)
 
-        drone_name = file_path.split("\\")[-1].replace(".csv", "")
+        drone_name = file_path.split(os.sep)[-1].replace(".csv", "")
 
         if visualize:
             data["RCS[dB]"].hist(by=data["f[GHz]"], figsize=(30, 30))
@@ -193,6 +193,8 @@ def RCS_TO_DATASET(RCS_xarray_dictionary,radars,yaw_lim,pitch_lim,roll_lim,bound
             # update the needed number of samples remaining JUST FOR THE SPECIFIC DRONE
             drone_sample_count[drone] = int(drone_sample_count[drone] - np.sum(valid_sample_idx))
 
+        if verbose:
+            print(drone_sample_count)
     RCSs = np.vstack(RCSs)
 
     azimuths = np.vstack(azimuths)

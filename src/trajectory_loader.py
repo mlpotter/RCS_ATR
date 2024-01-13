@@ -251,7 +251,7 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
     yaws = []; pitchs = []; rolls = []; translations = [];
 
     if verbose:
-        print("CONVERT DRONE RCS DICTIONARY TO X,y DATASET")
+        print("CONVERT DRONE RCS DICTIONARY TO TRAJECTORY X,y DATASET")
 
     drone_sample_count = {drone_key: num_points for drone_key in RCS_xarray_dictionary.keys()}
     start_time = time()
@@ -325,8 +325,8 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
 
             # update the needed number of samples remaining JUST FOR THE SPECIFIC DRONE
             drone_sample_count[drone] = int(drone_sample_count[drone] - np.sum(valid_sample_idx))
-
-        print(drone_sample_count)
+        if verbose:
+            print(drone_sample_count)
     RCSs = np.vstack(RCSs)
     azimuths = np.vstack(azimuths)
     elevations = np.vstack(elevations)
@@ -480,7 +480,8 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
 
 
         for i in range(dataset["n_classes"]):
-            ax2.plot(predictions[:t+1,i],linewidth=5,color=colors[i])
+            ax2.plot(predictions[:t+1,i],linewidth=3,color=colors[i])
+
         ax2.set_xlim([0,TN])
         ax2.set_ylim([0,1])
         ax2.set_ylabel("Class Prediction Probability")

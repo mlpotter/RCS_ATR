@@ -186,7 +186,7 @@ def main():
     dataset_single = RCS_TO_DATASET_Single_Point(drone_rcs_dictionary,
                                           azimuth_center=90,azimuth_spread=180,
                                           elevation_center=0,elevation_spread=190,
-                                          num_points=num_points,method="random")
+                                          num_points=num_points,method="random",verbose=False)
 
     dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
 
@@ -240,7 +240,9 @@ def main():
     time_step_size = 0.1
     vx = 50
     yaw_range , pitch_range , roll_range = np.pi/8,np.pi/15,0
-    xlim = [-50, 50];  ylim = [-50, 50]; zlim = [150, 300]
+    # xlim = [-50, 50];  ylim = [-50, 50]; zlim = [150, 300]
+    xlim = [-150, 150];  ylim = [-150, 150]; zlim = [200, 300]
+
     bounding_box = np.array([xlim,ylim,zlim])
     plotting_args = {"arrow_length": 10, "arrow_linewidth": 2}
 
@@ -250,7 +252,7 @@ def main():
                                               bounding_box=bounding_box,
                                               TN=TN, radars=radars,
                                               num_points=N_traj,
-                                              verbose=False)
+                                              verbose=True)
 
     dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"],SNR_constraint,covs_single[0],n_radars)
 
