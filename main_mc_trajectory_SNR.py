@@ -101,7 +101,7 @@ def main(args):
                                                          azimuth_center=args.azimuth_center, azimuth_spread=args.azimuth_spread,
                                                          elevation_center=args.elevation_center, elevation_spread=args.elevation_spread,
                                                          num_points=args.num_points,
-                                                         method=args.single_method)
+                                                         method=args.single_method,random_seed=args.random_seed+10)
 
             # add gaussian noise to RCS at a fixed SNR value
             dataset_single["RCS"] = add_noise(dataset_single["RCS"],args.SNR_constraint,covs_single[mc_trial])
@@ -135,7 +135,7 @@ def main(args):
                                                       roll_range=eval(args.roll_range),
                                                       bounding_box=bounding_box,
                                                       TN=args.TN, radars=radars,
-                                                      num_points=1000,#X_test.shape[0],
+                                                      num_points=2000,random_seed=args.random_seed+10,#X_test.shape[0],
                                                       verbose=False)
 
             # add gaussian noise to RCS at a fixed SNR value.. Note we use a block diagonal matrix (so we assume each radar measure is independent)
@@ -203,8 +203,11 @@ def main(args):
             mlflow.log_metrics({"accuracy_single": results_single.mean()})
 
 
-            mlflow.log_metrics({"accuracy_time": np.array2string(accuracy_time_fuse,separator=",")})
-            mlflow.log_metrics({"accuracy_single_time": np.array2string(accuracy_time_single,separator=",")})
+            # mlflow.log_metrics({"accuracy_time": np.array2string(accuracy_time_fuse,separator=",")})
+            # mlflow.log_metrics({"accuracy_single_time": np.array2string(accuracy_time_single,separator=",")})
+            mlflow.log_text(np.array2string(accuracy_time_fuse,separator=","),"accuracy_time.txt")
+            mlflow.log_text(np.array2string(accuracy_time_single,separator=","),"accuracy_single_time.txt")
+
             mlflow.log_artifacts(os.path.join("results","temp"))
 
             mlflow.log_param("random_seed", args.random_seed)

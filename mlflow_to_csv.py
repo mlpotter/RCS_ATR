@@ -17,6 +17,19 @@ def get_experiment_df(experiment_name):
     runs.columns = [re.sub("params.", "", col) for col in runs.columns]
     runs.columns = [re.sub("metrics.", "", col) for col in runs.columns]
 
+    runs["accuracy_time"] = ""
+    runs["accuracy_single_time"] = ""
+
+    for i,artifact in enumerate(runs["artifact_uri"]):
+        try:
+            runs.loc[i,"accuracy_time"] = mlflow.artifacts.load_text(artifact + "/accuracy_time.txt")
+        except:
+            pass
+        try:
+            runs.loc[i,"accuracy_single_time"] = mlflow.artifacts.load_text(artifact + "/accuracy_single_time.txt")
+        except:
+            pass
+
     return runs
 
 def main(args):
@@ -33,7 +46,6 @@ if __name__ == "__main__":
 
     parser.add_argument('--experiment_name', default="radar_target_recognition_snr_speed_test",
                         help='mlflow experiment name')
-
 
 
     args = parser.parse_args()

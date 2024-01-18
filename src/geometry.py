@@ -4,7 +4,11 @@ import numpy as np
 # https://msl.cs.uiuc.edu/planning/node102.html
 #
 def inverse_roll_matrix(rolls):
-    inverse_roll_rot = [np.expand_dims(np.array([[1,0,0,0],[0,np.cos(rolli),np.sin(rolli),0],[0,-np.sin(rolli),np.cos(rolli),0],[0,0,0,1]]),0) for rolli in rolls]
+    inverse_roll_rot = [np.expand_dims(np.array([[1,0,0,0],
+                                                 [0,np.cos(rolli),np.sin(rolli),0],
+                                                 [0,-np.sin(rolli),np.cos(rolli),0],
+                                                 [0,0,0,1]]),0)
+                        for rolli in rolls]
 
     return np.concatenate(inverse_roll_rot,0)
 
@@ -19,22 +23,36 @@ def inverse_yaw_matrix(yaws):
     return np.concatenate(inverse_yaw_rot,0)
 
 def inverse_translation_matrix(translations):
-    inverse_translations = [np.expand_dims(np.array([[1,0,0,-transi[0]],[0,1,0,-transi[1]],[0,0,1,-transi[2]],[0,0,0,1]]),0) for transi in translations]
+    inverse_translations = [np.expand_dims(np.array([[1,0,0,-transi[0]],
+                                                     [0,1,0,-transi[1]],
+                                                     [0,0,1,-transi[2]],
+                                                     [0,0,0,1]]),0)
+                            for transi in translations]
 
     return np.concatenate(inverse_translations,0)
 
 def roll_matrix(rolls):
-    roll_rot = [np.expand_dims(np.array([[1,0,0,0],[0,np.cos(rolli),-np.sin(rolli),0],[0,np.sin(rolli),np.cos(rolli),0],[0,0,0,1]]),0) for rolli in rolls]
+    roll_rot = [np.expand_dims(np.array([[1,0,0,0],
+                                         [0,np.cos(rolli),-np.sin(rolli),0],
+                                         [0,np.sin(rolli),np.cos(rolli),0],
+                                         [0,0,0,1]]),0)
+                for rolli in rolls]
 
     return np.concatenate(roll_rot,0)
 
 def pitch_matrix(pitchs):
-    pitch_rot = [np.expand_dims(np.array([[np.cos(pitchi),0,np.sin(pitchi),0],[0,1,0,0],[-np.sin(pitchi),0,np.cos(pitchi),0],[0,0,0,1]]),0) for pitchi in pitchs]
+    pitch_rot = [np.expand_dims(np.array([[np.cos(pitchi),0,np.sin(pitchi),0],
+                                          [0,1,0,0],
+                                          [-np.sin(pitchi),0,np.cos(pitchi),0],
+                                          [0,0,0,1]]),0) for pitchi in pitchs]
 
     return np.concatenate(pitch_rot,0)
 
 def yaw_matrix(yaws):
-    yaw_rot = [np.expand_dims(np.array([[np.cos(yawi),-np.sin(yawi),0,0],[np.sin(yawi),np.cos(yawi),0,0],[0,0,1,0],[0,0,0,1]]),0) for yawi in yaws]
+    yaw_rot = [np.expand_dims(np.array([[np.cos(yawi),-np.sin(yawi),0,0],
+                                        [np.sin(yawi),np.cos(yawi),0,0],
+                                        [0,0,1,0],
+                                        [0,0,0,1]]),0) for yawi in yaws]
 
     return np.concatenate(yaw_rot,0)
 
@@ -207,15 +225,16 @@ def main():
     import matplotlib as mpl
     mpl.use('Qt5Agg')
 
-    yaws =   np.array([0,np.pi/3,0,0,-np.pi/3,0])
-    pitchs = np.array([0,0,np.pi/3,0,0,-np.pi/3])
-    rolls =  np.array([0,0,0,np.pi/3,0,0])
+    yaws =   np.array([0,np.pi/4,0,0,-np.pi/4,0,0])
+    pitchs = np.array([0,0,np.pi/4,0,0,-np.pi/4,0])
+    rolls =  np.array([0,0,0,np.pi/4,0,0,np.pi/4])
     translations = np.array([[0,0,0],
                              [0,0,0],
                              [0,0,0],
                              [0,0,0],
                              [0,0,0],
-                             [5,5,4]])
+                             [5,5,4],
+                             [0,0,5]])
 
 
     yaw = yaw_matrix(yaws)

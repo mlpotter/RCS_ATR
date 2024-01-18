@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import pandas as pd
 
 from copy import deepcopy
@@ -122,6 +123,11 @@ def simulate_target_azim_elev(radars,yaw_lim,pitch_lim,roll_lim,bounding_box,num
 def RCS_TO_DATASET(RCS_xarray_dictionary,radars,yaw_lim,pitch_lim,roll_lim,bounding_box,num_points,verbose=False):
     """
     """
+    import numpy as np
+    import random
+
+    np.random.seed(123)
+    random.seed(123)
 
     N_radars = radars.shape[0]
     RCSs = [];
@@ -218,9 +224,13 @@ def RCS_TO_DATASET(RCS_xarray_dictionary,radars,yaw_lim,pitch_lim,roll_lim,bound
 
 
 # TODO: note that parrot_HH and MAVIC_HH have elevation from 0-180... so elevation center and azimuth center will get screwy from user specified!
-def RCS_TO_DATASET_Single_Point(RCS_xarray_dictionary,azimuth_center,azimuth_spread,elevation_center,elevation_spread,num_points,method="target",verbose=False):
+def RCS_TO_DATASET_Single_Point(RCS_xarray_dictionary,azimuth_center,azimuth_spread,elevation_center,elevation_spread,num_points,method="target",random_seed=123,verbose=False):
     """
     """
+
+    np.random.seed(random_seed)
+    random.seed(random_seed)
+
     # dictionary to convert label to digit label
     N_radars = 1
 
@@ -289,6 +299,10 @@ def RCS_TO_DATASET_Single_Point(RCS_xarray_dictionary,azimuth_center,azimuth_spr
             valid_sample_idx = ((azimuth <= valid_azimuths[1]) & (azimuth >= valid_azimuths[0]) & (
                         elevation <= valid_elevations[1]) & (elevation >= valid_elevations[0]))
             valid_sample_idx = valid_sample_idx.all(-1)
+
+            if valid_sample_idx.sum() == 0:
+                continue
+
             azimuth_copy = azimuth[valid_sample_idx, :]
             elevation_copy = elevation[valid_sample_idx, :]
 
@@ -342,7 +356,7 @@ def dataset_to_tensor(dataset,use_geometry):
     if use_geometry:
         azimuth = dataset["azimuth"]
         elevation = dataset["elevation"]
-        X = np.hstack((X,azimuth,elevation))
+        X = np.concatenate((X,azimuth,elevation),axis=-1)
 
     y = dataset["ys"]
     return X,y

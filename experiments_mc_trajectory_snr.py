@@ -44,8 +44,8 @@ def dictionary_equality(dict1,dict2):
 blocking=False
 batch_command = "--job-name=freedom --exclusive --cpus-per-task=18 --mem=20Gb --partition=short"
 
-num_points = [1000,10000]
-n_radars = [4,9,25,100]
+num_points = [10000]
+n_radars = [4,16,64]
 MC_trials = [10]
 
 elevations = [(0.0,190.0)]
@@ -53,26 +53,27 @@ azimuth_centers = [(90.0,180.0)]
 angles = list(zip(azimuth_centers,elevations))
 
 model_choices = ["logistic","xgboost","mlp"]
-snr_constraints = [-20.0,-10.0,0.0,10.0,20.0]
+snr_constraints = [-20.0,-10.0,0.0] #,10.0,20.0]
 
-noises = [("white","random"),("white","constant"),("color","random")]
-# jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0)]
-jitter_widths = [(0.0,0.0)]
+# noises = [("white","random"),("white","constant"),("color","random")]
+noises = [("color","random")]
+jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(75,75),(100,100)]
+# jitter_widths = [(0.0,0.0),(10.0,10.0)]
 
 # Trajectory Parameters
 TN = 100
 time_step_size = 0.1
 vx = 50
-yaw_range = "np.pi/8"
-pitch_range = "np.pi/15"
+yaw_range = "np.pi/15"
+pitch_range = "np.pi/20"
 roll_range = "0"
 
 fusion_methods = ["average","fusion","max"]
-experiment_name = "radar_target_recognition_snr_trajectory"
+experiment_name = "radar_target_recognition_snr_trajectory_geometry"
 random_seed = 123
 
 
-geometry_use = "no-geometry"
+geometry_use = "geometry"
 mlflow_track = "mlflow_track"
 
 previous_runs = get_experiment_df(experiment_name)

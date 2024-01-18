@@ -148,8 +148,8 @@ def main():
 
     CLASSIFIERS = dict(CLASSIFIERS)
 
-    np.random.seed(12300)
-    random.seed(12300)
+    np.random.seed(1)
+    random.seed(1)
 
     classifiers_names = ["XGBClassifier","KNeighborsClassifier","LogisticRegression"]
 
@@ -172,11 +172,11 @@ def main():
 
     radars = radar_grid(n_radars=n_radars,xlim=xlim,ylim=ylim)
 
-    use_geometry = False
+    use_geometry = True
 
     noise_color="color"
     noise_method="random"
-    SNR_constraint = 0
+    SNR_constraint = -20
     num_points = 10000
 
     covs_single = generate_cov(TraceConstraint=1, d=n_freq, N=1,
@@ -239,10 +239,10 @@ def main():
     N_traj = 1000
     time_step_size = 0.1
     vx = 50
-    yaw_range , pitch_range , roll_range = np.pi/8,np.pi/15,0
+    yaw_range , pitch_range , roll_range = np.pi/15,np.pi/20,0
     # xlim = [-50, 50];  ylim = [-50, 50]; zlim = [150, 300]
     xlim = [-150, 150];  ylim = [-150, 150]; zlim = [200, 300]
-
+    #
     bounding_box = np.array([xlim,ylim,zlim])
     plotting_args = {"arrow_length": 10, "arrow_linewidth": 2}
 
@@ -260,12 +260,12 @@ def main():
     # ============== GENERATE FIGURES ============= #
     drc =  distributed_recursive_classifier(len(label_encoder.classes_),use_geometry=use_geometry)
 
-    _,pred_logistic_history = drc.predict(clf.models["LogisticRegression"],dataset_multi)
-    _,pred_xgb_history = drc.predict(clf.models["XGBClassifier"],dataset_multi)
+    _,pred_logistic_history = drc.predict(clf.models["LogisticRegression"],dataset_multi,fusion_method="fusion")
+    _,pred_xgb_history = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="fusion")
 
     dataset_multi["n_radars"] = 1
-    _,pred_logistic_history_1 = drc.predict(clf.models["LogisticRegression"],dataset_multi)
-    _,pred_xgb_history_1 = drc.predict(clf.models["XGBClassifier"],dataset_multi)
+    _,pred_logistic_history_1 = drc.predict(clf.models["LogisticRegression"],dataset_multi,fusion_method="fusion")
+    _,pred_xgb_history_1 = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="fusion")
 
     import matplotlib.pyplot as plt
     plt.figure()

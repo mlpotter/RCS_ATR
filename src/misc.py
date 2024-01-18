@@ -96,18 +96,19 @@ def main():
 
     num_points = 1
     rad2deg = 180/np.pi
-
+    plotting_args =  {"arrow_length": 2, "arrow_linewidth": 3}
     # #
 
     # radars = np.array([(xlim[0], ylim[0], 0),
     #                    (xlim[0], ylim[1], 0),
     #                    (xlim[1], ylim[0], 0),
     #                    (xlim[1], xlim[1], 0)])
-    radars = np.array([[0.,10.,0],
-                       [10.,10.,0],
-                       [-10.,-10.,0],
-                       [-2,-2,0],
-                       [3,-4,0]])
+    # radars = np.array([[0.,10.,0],
+    #                    [10.,10.,0],
+    #                    [-10.,-10.,0],
+    #                    [-2,-2,0],
+    #                    [3,-4,0]])
+    radars = radar_grid(4,[0,10],[0,10])
 
     # xlim =[0,20]
     # ylim=[0,20]
@@ -148,10 +149,10 @@ def main():
     print("Azimuth: ", np.round(azimuth*rad2deg,2))
     print("Elevation: ",np.round(elevation*rad2deg,2))
     print()
-    ax = plt.figure().add_subplot(projection='3d')
-    draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations, yaws, pitchs, rolls, radars,ax=ax)
-    ax.set_title("Random Points and Angles to Corners")
-    plt.show()
+    # ax = plt.figure().add_subplot(projection='3d')
+    # draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations, yaws, pitchs, rolls, radars,ax=ax,plotting_args=plotting_args)
+    # ax.set_title("Random Points and Angles to Corners")
+    # plt.show()
 
     ## sanity tests, will code better later
 
@@ -163,11 +164,20 @@ def main():
 
     yaws_tests = [np.array([0.]),np.array([np.pi/3]),np.array([0]),np.array([np.pi/10])]
     pitchs_tests = [np.array([0.]),np.array([0.]),np.array([np.pi]),np.array([np.pi/7])]
-    rolls_tests = [np.array([0.]),np.array([0.]),np.array([0]),np.array([np.pi/5])]
-    translations_tests = [np.array([[5.0,5.,5.]]),np.array([[0,5,5]]),np.array([[5,5,10]]),np.array([[5,5,5]])]
+    rolls_tests = [np.array([0]),np.array([0.]),np.array([0]),np.array([np.pi/5])]
+    translations_tests = [np.array([[5.0,5.,5.]]),np.array([[0,5,5]]),np.array([[3,3,10]]),np.array([[5,5,5]])]
     translations_tests = [x+1e-8 for x in translations_tests]
 
-    fig = plt.figure(figsize=(15,7))
+    fig = plt.figure(figsize=(15,15))
+    SMALL_SIZE = 20
+    plt.rc('xtick', labelsize=SMALL_SIZE * 1)
+    plt.rc('ytick', labelsize=SMALL_SIZE * 1.)
+    plt.rc('font', size=SMALL_SIZE)
+    plt.rc('axes', titlesize=SMALL_SIZE)
+    plt.rc('axes', labelsize=SMALL_SIZE)
+    plt.rc('legend', fontsize=SMALL_SIZE)
+    plt.rc('figure', titlesize=SMALL_SIZE)
+
     for i,(yaws,pitchs,rolls,translations) in enumerate(zip(yaws_tests,pitchs_tests,rolls_tests,translations_tests)):
         inverse_yaw_matrix(yaws)
         inverse_pitch_matrix(pitchs)
@@ -183,12 +193,13 @@ def main():
         print("Elevation: ",np.round(elevation*rad2deg,2))
         print()
 
-        title = f"rho: {np.round(rho,2)} \n Azimuth: {np.round(azimuth*rad2deg,2)[0]} \n Elevation {np.round(elevation*rad2deg,2)[0]}"
-        ax = fig.add_subplot(1,len(translations_tests),i+1,projection='3d')
-        draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations, yaws, pitchs, rolls,radars,ax=ax)
-        ax.set_title(title,fontsize=10)
+        title = f"(yaw,pitch,roll) = {(np.round(yaws.item()*180/np.pi,2),np.round(pitchs.item()*180/np.pi,2),np.round(rolls.item()*180/np.pi,2))}\n rho: {np.round(rho,2)} \n Azimuth: {np.round(azimuth*rad2deg,2)[0]} \n Elevation {np.round(elevation*rad2deg,2)[0]}"
+        ax = fig.add_subplot(2,2,i+1,projection='3d')
+        draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations, yaws, pitchs, rolls,radars,ax=ax,plotting_args=plotting_args)
+        ax.set_zlim([0,10])
+        ax.set_title(title,fontsize=20)
 
-    plt.tight_layout(w_pad=3)
+    plt.tight_layout(h_pad=2,w_pad=0.3)
     plt.savefig(os.path.join("..","results","images","rollpitchyaw.pdf"),dpi=1600,bbox_inches='tight')
     plt.show()
 

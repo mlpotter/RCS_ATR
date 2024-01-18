@@ -5,6 +5,9 @@ from src.misc import draw_3d_lines_and_points_ref
 from time import time
 import xarray as xr
 
+import numpy as np
+import random
+
 
 import matplotlib.pyplot as plt
 from sktime.datatypes import convert
@@ -237,7 +240,7 @@ def simulate_target_trajectory_azim_elev_multi(time_step_size,vx,yaw_range,pitch
 
     return AZ_ts,EL_ts,(Rho_ts,yaws,pitchs,rolls,translations)
 
-def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,pitch_range,roll_range,bounding_box,radars,TN,num_points,verbose=False):
+def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,pitch_range,roll_range,bounding_box,radars,TN,num_points,random_seed=123,verbose=False):
     """
     """
     # dictionary to convert label to digit label
@@ -250,6 +253,9 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
 
     yaws = []; pitchs = []; rolls = []; translations = [];
 
+    batch_size = 250
+    np.random.seed(random_seed)
+    random.seed(random_seed)
     if verbose:
         print("CONVERT DRONE RCS DICTIONARY TO TRAJECTORY X,y DATASET")
 
@@ -264,7 +270,7 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
         num_points = np.min(drone_sample_counts[drone_sample_counts > 0])
 
         AZ_ts,EL_ts,(Rho_ts,yaw,pitch,roll,translation) = simulate_target_trajectory_azim_elev_multi(time_step_size, vx, yaw_range, pitch_range, roll_range, bounding_box, radars,TN,
-                                             N_traj=num_points)
+                                             N_traj=max(batch_size,num_points))
 
         # iterate through each drone's RCS "stack"
         for drone, RCS_array in RCS_xarray_dictionary.items():
@@ -290,19 +296,24 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
             valid_sample_idx = ((AZ_ts <= valid_azimuths[1]) & (AZ_ts >= valid_azimuths[0]) & (
                         EL_ts <= valid_elevations[1]) & (EL_ts >= valid_elevations[0]) & np.expand_dims((translation[:,:,-1] > 0),-1))
             valid_sample_idx = valid_sample_idx.all(axis=(-2,-1))
-            azimuth_copy = AZ_ts[valid_sample_idx,:,:]
-            elevation_copy = EL_ts[valid_sample_idx,:,:]
-            rho_copy = Rho_ts[valid_sample_idx,:]
-            yaw_copy = yaw[valid_sample_idx]
-            pitch_copy = pitch[valid_sample_idx]
-            roll_copy = roll[valid_sample_idx]
-            translation_copy = translation[valid_sample_idx]
+
+            if valid_sample_idx.sum() == 0:
+                continue
+
+            azimuth_copy = AZ_ts[valid_sample_idx,:,:][:num_points]
+            elevation_copy = EL_ts[valid_sample_idx,:,:][:num_points]
+            rho_copy = Rho_ts[valid_sample_idx,:][:num_points]
+            yaw_copy = yaw[valid_sample_idx][:num_points]
+            pitch_copy = pitch[valid_sample_idx][:num_points]
+            roll_copy = roll[valid_sample_idx][:num_points]
+            translation_copy = translation[valid_sample_idx][:num_points]
 
             # the RCS_label is the same for all samples from the same Drone RCS_array
             RCS_label = np.array([[drone]])
 
 
             # VECTORIZED INDEXING
+            # number of frequencies x (number of valid samples x time steps x number of radars)
             try:
                 RCS_indexed = RCS_array.interp(azimuth=xr.DataArray(azimuth_copy.ravel(),dims="points"),
                                                elevation=xr.DataArray(elevation_copy.ravel(),dims="points"))
@@ -316,7 +327,7 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
             RCS_indexed = RCS_indexed.values.reshape(N_freqs, *azimuth_copy.shape).transpose(1, 2, 3, 0).reshape(-1,TN,N_freqs*N_radars)
 
             RCSs.append(RCS_indexed)
-            ys.append(np.ones((valid_sample_idx.sum(),1))*RCS_label)
+            ys.append(np.ones((min(valid_sample_idx.sum(),num_points),1))*RCS_label)
             azimuths.append(azimuth_copy)
             elevations.append(elevation_copy)
             rhos.append(rho_copy)
@@ -324,7 +335,8 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
 
 
             # update the needed number of samples remaining JUST FOR THE SPECIFIC DRONE
-            drone_sample_count[drone] = int(drone_sample_count[drone] - np.sum(valid_sample_idx))
+            drone_sample_count[drone] = int(drone_sample_count[drone] - min(valid_sample_idx.sum(),num_points))
+
         if verbose:
             print(drone_sample_count)
     RCSs = np.vstack(RCSs)
@@ -356,8 +368,8 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
             }
 
     end_time = time()
-    if verbose:
-        print("Dataset Creation Time: {:.3f}".format(end_time-start_time))
+    # if verbose:
+    print("Dataset Creation Time: {:.3f}".format(end_time-start_time))
 
     return dataset
 
@@ -497,7 +509,7 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
         ax4.plot(radars[:,0],radars[:,1],'ro')
         ax4.set_xlabel("X-axis [m]")
         ax4.set_ylabel("Y-axis [m]")
-        ax4.set_title("Elevation [m]")
+        ax4.set_title("X-Y Overview")
         plt.tight_layout(w_pad=3)
 
     plt.close()
@@ -531,7 +543,7 @@ def main():
     yaw_range , pitch_range , roll_range = np.pi/10,np.pi/15,np.pi/15
     xlim = [-50, 50];  ylim = [-50, 50]; zlim = [150, 300]
     bounding_box = np.array([xlim,ylim,zlim])
-    num_radars = 9
+    num_radars = 4
     SNR = 5
 
     plotting_args = {"arrow_length": 5, "arrow_linewidth": 2}
