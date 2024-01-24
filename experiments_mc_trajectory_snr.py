@@ -48,17 +48,17 @@ num_points = [10000]
 n_radars = [4,16,64]
 MC_trials = [10]
 
-elevations = [(0.0,190.0)]
-azimuth_centers = [(90.0,180.0)]
-angles = list(zip(azimuth_centers,elevations))
+elevations = [(0.0,180.0)]
+azimuths = [(90.0,180.0)]
+angles = list(zip(azimuths,elevations))
 
 model_choices = ["logistic","xgboost","mlp"]
-snr_constraints = [-20.0,-10.0,0.0] #,10.0,20.0]
+snr_constraints = [-20.0,-10.0,0.0,10.0,20.0]
 
 # noises = [("white","random"),("white","constant"),("color","random")]
 noises = [("color","random")]
-jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(75,75),(100,100)]
-# jitter_widths = [(0.0,0.0),(10.0,10.0)]
+jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(80.0,80.0)]
+# jitter_widths = [(0.0,0.0)]#,(10.0,10.0)]
 
 # Trajectory Parameters
 TN = 100
@@ -69,7 +69,7 @@ pitch_range = "np.pi/20"
 roll_range = "0"
 
 fusion_methods = ["average","fusion","max"]
-experiment_name = "radar_target_recognition_snr_trajectory_geometry"
+experiment_name = "radar_target_recognition_snr_trajectory_geometry_avg_fixed"
 random_seed = 123
 
 
@@ -120,7 +120,7 @@ if __name__ == "__main__":
                                         f"--azimuth_jitter_width={azimuth_jitter_width} "\
                                         f"--elevation_jitter_width={elevation_jitter_width} " \
                                         f"--azimuth_jitter_bounds=0_180 " \
-                                        f"--elevation_jitter_bounds=-95_95 " \
+                                        f"--elevation_jitter_bounds=-90_90 " \
                                         f"--model_choice={model_choice} "\
                                         f"--experiment_name={experiment_name} " \
                                         f"--fusion_method={fusion_method} "\

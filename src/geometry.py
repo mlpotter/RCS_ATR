@@ -127,7 +127,7 @@ def calculate_3d_angles_ref(translations,yaws,pitchs,rolls, radars,coordinate_sy
     inv_trans = inverse_translation_matrix(translations)
 
     # number of simulate points x dimension of coordinate (4) x number of radars
-    relative_distances = np.matmul(inv_yaw@inv_pitch@inv_roll@inv_trans, radars.T)
+    relative_distances = np.matmul(inv_roll@inv_pitch@inv_yaw@inv_trans, radars.T)
 
     # number of simulate points  x number of radars x dimension of coordinate (4)
     relative_distances = relative_distances.transpose(0,2,1)
@@ -140,10 +140,10 @@ def calculate_3d_angles_ref(translations,yaws,pitchs,rolls, radars,coordinate_sy
     # return spherical coordinates
     return range_,rho,azimuth,elevation
 
-def plot_target_frames(ax,trans,roll,pitch,yaw,length=2,linewidth=5):
+def plot_target_frames(ax,trans,yaw,pitch,roll,length=2,linewidth=5):
     coordinates = np.eye(3)
     coordinates = np.hstack((coordinates,np.ones((coordinates.shape[0],1))))
-    radar_positions = np.matmul(roll @ pitch @ yaw, coordinates.T).transpose(0,2,1)
+    radar_positions = np.matmul(yaw @ pitch @ roll, coordinates.T).transpose(0,2,1)
     for i in range(trans.shape[0]):
         tx, ty, tz,_ = trans[i,:,-1]
         # green is the x axis
@@ -183,7 +183,7 @@ def simulate_target_gif(time_step_size,vx,yaw_range,pitch_range,roll_range,bound
         inv_roll = inverse_roll_matrix(rolls[:, t])
         inv_trans = inverse_translation_matrix(translations[:, t, :])
 
-        relative_distances = np.matmul(inv_yaw @ inv_pitch @ inv_roll @ inv_trans, radars.T)
+        relative_distances = np.matmul(inv_roll @ inv_pitch @ inv_yaw @ inv_trans, radars.T)
 
         # number of simulate points  x number of radars x dimension of coordinate (4)
         relative_distances = relative_distances.transpose(0, 2, 1)
@@ -225,16 +225,23 @@ def main():
     import matplotlib as mpl
     mpl.use('Qt5Agg')
 
-    yaws =   np.array([0,np.pi/4,0,0,-np.pi/4,0,0])
-    pitchs = np.array([0,0,np.pi/4,0,0,-np.pi/4,0])
-    rolls =  np.array([0,0,0,np.pi/4,0,0,np.pi/4])
+    # yaws =   np.array([0,np.pi/4,0,0,-np.pi/4,0,0])
+    # pitchs = np.array([0,np.pi/4,np.pi/4,0,0,-np.pi/4,0])
+    # rolls =  np.array([0,0,0,np.pi/4,0,0,np.pi/4])
+    # translations = np.array([[0,0,0],
+    #                          [0,0,0],
+    #                          [0,0,0],
+    #                          [0,0,0],
+    #                          [0,0,0],
+    #                          [5,5,4],
+    #                          [0,0,5]])
+
+    yaws =   np.array([np.pi/4,np.pi/4,0])
+    pitchs = np.array([0,np.pi/4,np.pi/4])
+    rolls =  np.array([0,0,0])
     translations = np.array([[0,0,0],
                              [0,0,0],
-                             [0,0,0],
-                             [0,0,0],
-                             [0,0,0],
-                             [5,5,4],
-                             [0,0,5]])
+                             [0,0,0]])
 
 
     yaw = yaw_matrix(yaws)
@@ -244,14 +251,14 @@ def main():
 
 
     # Creating 4x2 subplots
-    fig = plt.figure(figsize=(31, 16))
+    fig = plt.figure(figsize=(5*len(yaws), 5))
     n_axes = translations.shape[0]
     rad2deg = 180/np.pi
 
     for i in range(n_axes):
         ax = fig.add_subplot(1,n_axes,i+1, projection = '3d')  # you can adjust the size as per your requirement
 
-        plot_target_frames(ax,trans[[i]],roll[[i]],pitch[[i]],yaw[[i]])
+        plot_target_frames(ax,trans[[i]],yaw[[i]],pitch[[i]],roll[[i]])
         title = "Roll={:.2f}, Pitch={:.2f}, Yaw={:.2f}".format(rolls[i]*rad2deg,pitchs[i]*rad2deg,yaws[i]*rad2deg)
         ax.set_ylabel("Y")
         ax.set_xlabel("X")

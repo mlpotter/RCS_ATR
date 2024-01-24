@@ -53,7 +53,7 @@ def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,
     pitch = pitch_matrix(pitchs)
     roll = roll_matrix(rolls)
     trans = translation_matrix(translations)
-    plot_target_frames(ax,trans,roll,pitch,yaw,length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
+    plot_target_frames(ax,trans,yaw,pitch,roll,length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
 
     for i,transi in enumerate(translations):
         ax.plot(transi[0], transi[1], transi[2], 'bo')
@@ -66,7 +66,7 @@ def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,
 
         # number of radars x number of dimensions
         # sanity check to see if I recover the radar positions from perspective of target...
-        radar_positions = np.matmul(transi @ rolli @ pitchi @ yawi, delta[i].T).T
+        radar_positions = np.matmul(transi @ yawi @ pitchi @ rolli, delta[i].T).T
 
         ax.plot(radar_positions[:,0], radar_positions[:,1], radar_positions[:,2], 'ro')
 
@@ -162,9 +162,9 @@ def main():
     # translations_tests = [np.array([[5.0,5.,5.]]),np.array([[10.,10.,5.]]),np.array([[10.,10.,-5.]]),np.array([[5.,5.,5.]]),np.array([[0,5,5]]),np.array([[5,5,10]]),np.array([[5,5,5]])]
     # translations_tests = [x+1e-8 for x in translations_tests]
 
-    yaws_tests = [np.array([0.]),np.array([np.pi/3]),np.array([0]),np.array([np.pi/10])]
-    pitchs_tests = [np.array([0.]),np.array([0.]),np.array([np.pi]),np.array([np.pi/7])]
-    rolls_tests = [np.array([0]),np.array([0.]),np.array([0]),np.array([np.pi/5])]
+    yaws_tests = [np.array([0.]),np.array([np.pi/3]),np.array([0]),np.array([np.pi/4])]
+    pitchs_tests = [np.array([0.]),np.array([0.]),np.array([np.pi]),np.array([0])]
+    rolls_tests = [np.array([0]),np.array([0.]),np.array([0]),np.array([np.pi/4])]
     translations_tests = [np.array([[5.0,5.,5.]]),np.array([[0,5,5]]),np.array([[3,3,10]]),np.array([[5,5,5]])]
     translations_tests = [x+1e-8 for x in translations_tests]
 

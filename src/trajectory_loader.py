@@ -30,7 +30,7 @@ def simulate_trajectories(init_position,time_step_size,vx,yaw_range,pitch_range,
         pitcht = pitch_matrix(pitchs[:,i-1])
         rollt = roll_matrix(rolls[:,i-1])
 
-        forward_dir = np.matmul(rollt @ pitcht @ yawt, forward_dir).transpose(0, 2, 1)
+        forward_dir = np.matmul(yawt @ pitcht @ rollt, forward_dir).transpose(0, 2, 1)
 
         translations[:,i,:] = translations[:,i-1,:] + vx * time_step_size * forward_dir[:,0,:-1]
         yaws[:,i] = (yaws[:,i-1] + np.random.randn(N_traj)*yaw_range) % (2*np.pi)
@@ -61,7 +61,7 @@ def simulate_target_trajectory_azim_elev(time_step_size,vx,yaw_range,pitch_range
         inv_roll = inverse_roll_matrix(rolls[:, t])
         inv_trans = inverse_translation_matrix(translations[:, t, :])
 
-        relative_distances = np.matmul(inv_yaw @ inv_pitch @ inv_roll @ inv_trans, radars)
+        relative_distances = np.matmul(inv_roll @ inv_pitch @ inv_yaw @ inv_trans, radars)
 
         # number of simulate points  x number of radars x dimension of coordinate (4)
         relative_distances = relative_distances.transpose(0, 2, 1)
@@ -201,6 +201,7 @@ def simulate_target_trajectory_azim_elev_multi(time_step_size,vx,yaw_range,pitch
         np.random.uniform(bounding_box[2,0], bounding_box[2,1], N_traj)
     ))
 
+    # Number of samples x number of  time steps
     yaws, pitchs, rolls, translations = simulate_trajectories(init_position, time_step_size, vx, yaw_range, pitch_range,
                                                             roll_range, TN, N_traj)
     N_radars = radars.shape[0]
@@ -212,16 +213,19 @@ def simulate_target_trajectory_azim_elev_multi(time_step_size,vx,yaw_range,pitch
     Rho_ts = np.zeros((N_traj, TN,N_radars))
 
     for t in range(TN):
+        # number of simulation points x 4 x 4
         inv_yaw = inverse_yaw_matrix(yaws[:, t])
         inv_pitch = inverse_pitch_matrix(pitchs[:, t])
         inv_roll = inverse_roll_matrix(rolls[:, t])
         inv_trans = inverse_translation_matrix(translations[:, t, :])
 
-        relative_distances = np.matmul(inv_yaw @ inv_pitch @ inv_roll @ inv_trans, radars.T)
+        # number of simulation points x 4 x 4
+        relative_distances = np.matmul(inv_roll @ inv_pitch @ inv_yaw @ inv_trans, radars.T)
 
         # number of simulate points  x number of radars x dimension of coordinate (4)
         relative_distances = relative_distances.transpose(0, 2, 1)
 
+        # number of simulation points x 4
         range_, rho, azimuth, elevation = cartesian2spherical(relative_distances[:, :, 0],
                                                               relative_distances[:, :, 1],
                                                               relative_distances[:, :, 2])
@@ -288,8 +292,9 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
             N_freqs = len(frequency_axes)
 
             # boundary of azimuth and elevations to check for valid sample generated
-            valid_azimuths, valid_elevations = [np.min(azimuth_axes), np.max(azimuth_axes)], [np.min(elevation_axes),
-                                                                                              np.max(elevation_axes)]
+            # valid_azimuths, valid_elevations = [np.min(azimuth_axes), np.max(azimuth_axes)], [np.min(elevation_axes),
+            #                                                                                   np.max(elevation_axes)]
+            valid_azimuths, valid_elevations = [0, 180], [-90, 90]
 
             # the random azimuth and elevation MUST BE WITHIN RANGE OF THE REAL DATA!
             # a sample is only valid if ALL the azimuths and elevations wrt each radar are VALID
@@ -401,7 +406,7 @@ def simulate_target_gif(time_step_size,vx,yaw_range,pitch_range,roll_range,bound
         inv_roll = inverse_roll_matrix(rolls[:, t])
         inv_trans = inverse_translation_matrix(translations[:, t, :])
 
-        relative_distances = np.matmul(inv_yaw @ inv_pitch @ inv_roll @ inv_trans, radars.T)
+        relative_distances = np.matmul(inv_roll @ inv_pitch @ inv_yaw @ inv_trans, radars.T)
 
         # number of simulate points  x number of radars x dimension of coordinate (4)
         relative_distances = relative_distances.transpose(0, 2, 1)
@@ -437,7 +442,7 @@ def simulate_target_gif(time_step_size,vx,yaw_range,pitch_range,roll_range,bound
             os.remove(filename)
 
 def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow_length": 15, "arrow_linewidth": 2}):
-    fig = plt.figure(figsize=(15,5))
+    fig = plt.figure(figsize=(28,7))
     ax1 = fig.add_subplot(1, 4, 1, projection='3d')
     ax2 = fig.add_subplot(1, 4, 2)
     ax3 = fig.add_subplot(1, 4, 3)
@@ -447,7 +452,7 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
     colors = [cm(1. * i / dataset["n_classes"]) for i in range(dataset["n_classes"])]
 
     photo_dump = os.path.join("..","results","tmp_photo")
-    remove_photo_dump = True
+    remove_photo_dump = False
     os.makedirs(photo_dump,exist_ok=True)
 
     N_radars = radars.shape[0]
@@ -457,6 +462,8 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
     predictions = predictions[0]
     TN = dataset["TN"]
 
+    forward_coordinates = np.eye(2)
+
     # number of simulate points x number of time steps x number of radars
     frames = []
     for t in tqdm(range(TN)):
@@ -465,7 +472,7 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
         inv_roll = inverse_roll_matrix(rolls[:, t])
         inv_trans = inverse_translation_matrix(translations[:, t, :])
 
-        relative_distances = np.matmul(inv_yaw @ inv_pitch @ inv_roll @ inv_trans, radars.T)
+        relative_distances = np.matmul(inv_roll @ inv_pitch @ inv_yaw @ inv_trans, radars.T)
 
         # number of simulate points  x number of radars x dimension of coordinate (4)
         relative_distances = relative_distances.transpose(0, 2, 1)
@@ -486,10 +493,9 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
         ax1.set_xlabel("X-axis [m]")
         ax1.set_ylabel("Y-axis [m]")
         ax1.set_zlabel("Z-axis [m]")
-        plt.savefig(filename)
-        frames.append(imageio.imread(filename))
-        [line.remove() for line in ax1.lines[-N_radars:]]
-
+        title_ = str(np.round(azimuth*180/np.pi).ravel().tolist())
+        title_ = title_ + "\n" + str(np.round(elevation*180/np.pi).ravel().tolist())
+        ax1.set_title(title_)
 
         for i in range(dataset["n_classes"]):
             ax2.plot(predictions[:t+1,i],linewidth=3,color=colors[i])
@@ -505,12 +511,31 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
         ax3.set_xlabel(f"Time ({dataset['time_step_size']} resolution [s])")
         ax3.set_title("Elevation [m]")
 
+
+        rotation_matrix = np.array([[np.cos(yaws[:,t]).item(),-np.sin(yaws[:,t]).item()],
+                                    [np.sin(yaws[:,t]).item(),np.cos(yaws[:,t]).item()]])
+
+        tgt_frame = rotation_matrix @ forward_coordinates
+        xaxis = tgt_frame[:, 0].ravel()
+        yaxis = tgt_frame[:, 1].ravel()
+
         ax4.plot(translations[:,:t+1,0].ravel(),translations[:,:t+1,1].ravel(),'g>-')
         ax4.plot(radars[:,0],radars[:,1],'ro')
+
+        quiver_artist1 = ax4.quiver(translations[:,t,0].ravel(), translations[:,t,1].ravel(), xaxis[0], xaxis[1], color='g', linewidth=0.5)
+        quiver_artist2 = ax4.quiver(translations[:,t,0].ravel(), translations[:,t,1].ravel(), yaxis[0], yaxis[1], color='m', linewidth=0.5)
+
         ax4.set_xlabel("X-axis [m]")
         ax4.set_ylabel("Y-axis [m]")
         ax4.set_title("X-Y Overview")
         plt.tight_layout(w_pad=3)
+
+        plt.savefig(filename)
+        quiver_artist2.remove()
+        quiver_artist1.remove()
+        frames.append(imageio.imread(filename))
+        [line.remove() for line in ax1.lines[-N_radars:]]
+
 
     plt.close()
 
@@ -569,7 +594,7 @@ def main():
         trans = translation_matrix(translations[i])
 
         for j in range(TN):
-            plot_target_frames(ax,trans[[j]],roll[[j]],pitch[[j]],yaw[[j]],length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
+            plot_target_frames(ax,trans[[j]],yaw[[j]],pitch[[j]],roll[[j]],length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
         ax.set_ylabel("Y")
         ax.set_xlabel("X")
         ax.set_zlabel("Z")

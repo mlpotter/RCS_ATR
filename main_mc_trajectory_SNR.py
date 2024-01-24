@@ -94,6 +94,8 @@ def main(args):
                                     noise_method=args.noise_method)
 
         # iterate MC trials
+        accuracy_time_fuse_avg = 0
+        accuracy_time_single_avg = 0
         for mc_trial in range(args.MC_Trials):
 
             # generate the uncorrupted RCS signals in the form of dictionary {"RCS":,"ys","azimuth":,"elevation":} for single radar
@@ -181,6 +183,9 @@ def main(args):
             accuracy_time_fuse = (y_pred_history.argmax(-1) == dataset_multi["ys"]).mean(0)
             accuracy_time_single = (y_pred_history_1.argmax(-1) == dataset_multi["ys"]).mean(0)
 
+            accuracy_time_fuse_avg += accuracy_time_fuse
+            accuracy_time_single_avg += accuracy_time_single
+
             plt.figure()
             plt.plot(accuracy_time_fuse, color="purple", marker="o", linestyle="-")
             plt.plot(accuracy_time_single, color="purple", marker="+", linestyle="-")
@@ -205,8 +210,8 @@ def main(args):
 
             # mlflow.log_metrics({"accuracy_time": np.array2string(accuracy_time_fuse,separator=",")})
             # mlflow.log_metrics({"accuracy_single_time": np.array2string(accuracy_time_single,separator=",")})
-            mlflow.log_text(np.array2string(accuracy_time_fuse,separator=","),"accuracy_time.txt")
-            mlflow.log_text(np.array2string(accuracy_time_single,separator=","),"accuracy_single_time.txt")
+            mlflow.log_text(np.array2string(accuracy_time_fuse_avg/args.MC_Trials,separator=","),"accuracy_time.txt")
+            mlflow.log_text(np.array2string(accuracy_time_single_avg/args.MC_Trials,separator=","),"accuracy_single_time.txt")
 
             mlflow.log_artifacts(os.path.join("results","temp"))
 
@@ -246,7 +251,7 @@ if __name__ == "__main__":
     parser.add_argument('--azimuth_jitter_width', default=10,type=float, help='the width of the jitter for azimuth')
     parser.add_argument('--azimuth_jitter_bounds', default="0_180",type=str, help='lower and upper bound of the azimuth when adding noise to clip')
     parser.add_argument('--elevation_jitter_width', default=10,type=float, help='the width of the jitter for elevation')
-    parser.add_argument('--elevation_jitter_bounds', default="-95_95",type=str, help='lower and upper bound of the elevation when adding noise to clip')
+    parser.add_argument('--elevation_jitter_bounds', default="-90_90",type=str, help='lower and upper bound of the elevation when adding noise to clip')
 
     # Model Tracking parameters
     parser.add_argument('--experiment_name',type=str,default="radar_target_recognition",help="experimennt name for MLFLOW")
@@ -263,6 +268,8 @@ if __name__ == "__main__":
     print(f"Noise Method = {args.noise_method} Noise Color={args.color}")
     print(f"Fusion Method = {args.fusion_method}")
     print(f"SNR = {args.SNR_constraint}")
+    print(f"Az/El Jitter = {args.azimuth_jitter_width},{args.elevation_jitter_width}")
+    print(f"Az/El Bounds = {args.azimuth_jitter_bounds},{args.elevation_jitter_bounds}")
 
     os.makedirs(os.path.join("results","temp"),exist_ok=True)
 

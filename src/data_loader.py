@@ -167,7 +167,7 @@ def RCS_TO_DATASET(RCS_xarray_dictionary,radars,yaw_lim,pitch_lim,roll_lim,bound
             N_freqs = len(frequency_axes)
 
             # boundary of azimuth and elevations to check for valid sample generated
-            valid_azimuths, valid_elevations = [np.min(azimuth_axes),np.max(azimuth_axes)],[np.min(elevation_axes),np.max(elevation_axes)]
+            valid_azimuths, valid_elevations = [0,180],[-90,90]#[np.min(azimuth_axes),np.max(azimuth_axes)],[np.min(elevation_axes),np.max(elevation_axes)]
 
             # the random azimuth and elevation MUST BE WITHIN RANGE OF THE REAL DATA!
             # a sample is only valid if ALL the azimuths and elevations wrt each radar are VALID
@@ -483,7 +483,7 @@ def visualize_RCS_dictionary(drone_rcs_dictionary,smooth_images=False,save_image
 def main():
     visualize = False
     DRONE_RCS_FOLDER =  "../Drone_RCS_Measurement_Dataset"
-    drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER,visualize=False)
+    drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER,visualize=False,verbose=True)
 
     if visualize:
         visualize_RCS_dictionary(drone_rcs_dictionary)

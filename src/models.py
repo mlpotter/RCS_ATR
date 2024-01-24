@@ -69,6 +69,7 @@ class distributed_recursive_classifier(object):
                 elevation_i = elevation[:, [i]]
                 X = np.hstack((X,azimuth_i,elevation_i))
 
+            # number of samples x number of classes
             y_pred = clf.predict_proba(X)
 
             predictions[:,:,i] = y_pred
@@ -81,8 +82,8 @@ class distributed_recursive_classifier(object):
 
         elif fusion_method == "fusion":
             # predictions = np.log(predictions+1e-16).sum(-1)#.argmax(1,keepdims=True)
-            num = predictions.prod(-1)
-            den = np.sum(predictions.prod(axis=-1),axis=-1,keepdims=True)
+            num = predictions.prod(axis=-1)
+            den = np.sum(num,axis=-1,keepdims=True)
             predictions = num/den
         else:
             raise Exception("Not a valid fusion method of multiple radars")
@@ -106,6 +107,7 @@ class distributed_recursive_classifier(object):
             # Number of Trajectories x Number of Classes
             p_c_given_z = self.predict_instant(clf,dataset,t=t,fusion_method=fusion_method)
 
+            # Number of Trajectories x Number of Classes
             numerator = p_c_given_z * p_c_given_past
 
             denominator = np.sum(p_c_given_z * p_c_given_past,axis=-1,keepdims=True)
@@ -148,8 +150,8 @@ def main():
 
     CLASSIFIERS = dict(CLASSIFIERS)
 
-    np.random.seed(1)
-    random.seed(1)
+    np.random.seed(1555)
+    random.seed(1555)
 
     classifiers_names = ["XGBClassifier","KNeighborsClassifier","LogisticRegression"]
 
