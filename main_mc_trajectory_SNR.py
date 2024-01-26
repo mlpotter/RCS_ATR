@@ -262,6 +262,11 @@ if __name__ == "__main__":
     experiment_name = f"experiment=num_points={args.num_points} n_radars={args.n_radars} " \
                       f"color={args.color} noise_method={args.noise_method} MC_trials={args.MC_Trials}" + ".xlsx"
 
+    from datetime import datetime
+    from pytz import timezone
+
+    tz = timezone('EST')
+    print(datetime.now(tz))
 
     print(f"Model Choice = {args.model_choice}")
     print(f"Number of Radars = {args.n_radars}")

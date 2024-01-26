@@ -57,8 +57,8 @@ snr_constraints = [-20.0,-10.0,0.0,10.0,20.0]
 
 # noises = [("white","random"),("white","constant"),("color","random")]
 noises = [("color","random")]
-jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(80.0,80.0)]
-# jitter_widths = [(0.0,0.0)]#,(10.0,10.0)]
+# jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(80.0,80.0)]
+jitter_widths = [(0.0,0.0)]#,(10.0,10.0)]
 
 # Trajectory Parameters
 TN = 100
@@ -69,11 +69,11 @@ pitch_range = "np.pi/20"
 roll_range = "0"
 
 fusion_methods = ["average","fusion","max"]
-experiment_name = "radar_target_recognition_snr_trajectory_geometry_avg_fixed"
+experiment_name = "radar_target_recognition_snr_trajectory_nogeometry_avg_fixed"
 random_seed = 123
 
 
-geometry_use = "geometry"
+geometry_use = "no-geometry"
 mlflow_track = "mlflow_track"
 
 previous_runs = get_experiment_df(experiment_name)

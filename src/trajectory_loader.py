@@ -490,27 +490,38 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
         ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
 
         # Add some labels (optional)
-        ax1.set_xlabel("X-axis [m]")
-        ax1.set_ylabel("Y-axis [m]")
-        ax1.set_zlabel("Z-axis [m]")
-        title_ = str(np.round(azimuth*180/np.pi).ravel().tolist())
-        title_ = title_ + "\n" + str(np.round(elevation*180/np.pi).ravel().tolist())
-        ax1.set_title(title_)
+        ax1.set_xlabel("X-axis [m]",fontsize=20,labelpad=5)
+        ax1.set_ylabel("Y-axis [m]",fontsize=20,labelpad=5)
+        ax1.set_zlabel("Z-axis [m]",fontsize=20)
+        label1 = ax1.plot([],[],marker="o",color="r",linestyle="",label="Radar")[0]
+        label2 = ax1.plot([],[],marker="o",color="b",linestyle="",label="Target")[0]
+        label3 = ax1.plot([],[],linestyle="-",color="r",label="RLOS")[0]
+        ax1.legend(handles=[label1,label2,label3],fontsize=20)
+        ax1.tick_params(axis='both', which='major', labelsize=15,pad=-1)
+        ax1.tick_params(axis='both', which='minor', labelsize=15,pad=-1)
+
+        # title_ = str(np.round(azimuth*180/np.pi).ravel().tolist())
+        # title_ = title_ + "\n" + str(np.round(elevation*180/np.pi).ravel().tolist())
+        # ax1.set_title(title_)
 
         for i in range(dataset["n_classes"]):
             ax2.plot(predictions[:t+1,i],linewidth=3,color=colors[i])
 
         ax2.set_xlim([0,TN])
         ax2.set_ylim([0,1])
-        ax2.set_ylabel("Class Prediction Probability")
-        ax2.set_xlabel(f"Time ({dataset['time_step_size']} resolution [s])")
-        ax2.set_title(f"True Label {dataset['ys'][0]}")
-        ax2.legend(np.arange(dataset["n_classes"]))
+        ax2.set_ylabel("Class Prediction Probability",fontsize=20)
+        ax2.set_xlabel(f"Time ({dataset['time_step_size']} resolution [s])",fontsize=20)
+        ax2.set_title(f"True Label {int(dataset['ys'][0].item())}",fontsize=20)
+        ax2.legend([f"Drone {i}" for i in np.arange(dataset["n_classes"])],fontsize=20)
+        ax2.tick_params(axis='both', which='major', labelsize=15)
+        ax2.tick_params(axis='both', which='minor', labelsize=15)
 
         ax3.plot(translations[:,:t+1,-1].ravel(),'yo-')
-        ax3.set_xlabel(f"Time ({dataset['time_step_size']} resolution [s])")
-        ax3.set_title("Elevation [m]")
-
+        ax3.set_xlabel(f"Time ({dataset['time_step_size']} resolution [s])",fontsize=20)
+        ax3.set_ylabel("Z-axis [m]",fontsize=20)
+        ax3.set_title("Elevation [m]",fontsize=20)
+        ax3.tick_params(axis='both', which='major', labelsize=15)
+        ax3.tick_params(axis='both', which='minor', labelsize=15)
 
         rotation_matrix = np.array([[np.cos(yaws[:,t]).item(),-np.sin(yaws[:,t]).item()],
                                     [np.sin(yaws[:,t]).item(),np.cos(yaws[:,t]).item()]])
@@ -519,22 +530,28 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
         xaxis = tgt_frame[:, 0].ravel()
         yaxis = tgt_frame[:, 1].ravel()
 
-        ax4.plot(translations[:,:t+1,0].ravel(),translations[:,:t+1,1].ravel(),'g>-')
+        ax4.plot(translations[:,:t+1,0].ravel(),translations[:,:t+1,1].ravel(),'bo-')
         ax4.plot(radars[:,0],radars[:,1],'ro')
 
-        quiver_artist1 = ax4.quiver(translations[:,t,0].ravel(), translations[:,t,1].ravel(), xaxis[0], xaxis[1], color='g', linewidth=0.5)
-        quiver_artist2 = ax4.quiver(translations[:,t,0].ravel(), translations[:,t,1].ravel(), yaxis[0], yaxis[1], color='m', linewidth=0.5)
+        quiver_artist1 = ax4.quiver(translations[:,t,0].ravel(), translations[:,t,1].ravel(), xaxis[0], xaxis[1], color='g', linewidth=0.5,label="Target X-axis")
+        quiver_artist2 = ax4.quiver(translations[:,t,0].ravel(), translations[:,t,1].ravel(), yaxis[0], yaxis[1], color='m', linewidth=0.5,label="Target Y-axis")
 
-        ax4.set_xlabel("X-axis [m]")
-        ax4.set_ylabel("Y-axis [m]")
-        ax4.set_title("X-Y Overview")
+        ax4.set_xlabel("X-axis [m]",fontsize=20)
+        ax4.set_ylabel("Y-axis [m]",fontsize=20)
+        ax4.set_title("X-Y Overview",fontsize=20)
+        label1 = ax4.plot([],[],marker="o",color="r",linestyle="",label="Radar")[0]
+        label2 = ax4.plot([],[],marker="o",color="b",linestyle="",label="Target")[0]
+        ax4.legend(handles=[label1,label2,quiver_artist1,quiver_artist2],fontsize=20)
+        ax4.tick_params(axis='both', which='major', labelsize=15)
+        ax4.tick_params(axis='both', which='minor', labelsize=15)
         plt.tight_layout(w_pad=3)
 
         plt.savefig(filename)
         quiver_artist2.remove()
         quiver_artist1.remove()
         frames.append(imageio.imread(filename))
-        [line.remove() for line in ax1.lines[-N_radars:]]
+        ax2.legend_ = None
+        [line.remove() for line in ax1.lines[-(N_radars+3):]]
 
 
     plt.close()

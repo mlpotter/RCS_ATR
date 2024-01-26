@@ -150,8 +150,8 @@ def main():
 
     CLASSIFIERS = dict(CLASSIFIERS)
 
-    np.random.seed(1555)
-    random.seed(1555)
+    np.random.seed(1)
+    random.seed(1)
 
     classifiers_names = ["XGBClassifier","KNeighborsClassifier","LogisticRegression"]
 
@@ -238,7 +238,7 @@ def main():
 
     #================= TEST DISTRIBUTED RADAR CLASSIFIER =================#
     TN = 100
-    N_traj = 1000
+    N_traj = 100
     time_step_size = 0.1
     vx = 50
     yaw_range , pitch_range , roll_range = np.pi/15,np.pi/20,0
