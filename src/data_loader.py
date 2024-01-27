@@ -20,7 +20,7 @@ from sklearn.model_selection import train_test_split
 
 # TODO: WRITE CODE TO SAVE, LOAD PICKLE FILES
 # TODO: note that parrot_HH and MAVIC_HH have elevation from 0-180... is this mistake?
-def DRONE_RCS_CSV_TO_XARRAY(path,visualize=False,verbose=False):
+def DRONE_RCS_CSV_TO_XARRAY(path,visualize=False,verbose=False,exponentiate=False):
     if verbose:
         print("LOAD RCS DATA FROM CSV FILES")
     # get all the .csv files with the drones RCS values
@@ -69,6 +69,9 @@ def DRONE_RCS_CSV_TO_XARRAY(path,visualize=False,verbose=False):
             theta = specific_data['theta[deg]']
             phi = specific_data['phi[deg]']
             rcs = specific_data['RCS[dB]']  # color coding based on RCS values
+
+            if exponentiate:
+                rcs = 10**(rcs/10)
 
             # print("@{}GHz Min RCS {:0.3f} , Max RCS {:.3f}".format(frequency,rcs.min(), rcs.max()))
 
@@ -343,8 +346,8 @@ def RCS_TO_DATASET_Single_Point(RCS_xarray_dictionary,azimuth_center,azimuth_spr
             }
 
     end_time = time()
-    if verbose:
-        print("Dataset Creation Time: {:.3f}".format(end_time-start_time))
+    # if verbose:
+    print("Single Point Dataset Creation Time: {:.3f}".format(end_time-start_time))
 
     return dataset
 

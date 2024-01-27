@@ -5,6 +5,8 @@ from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 from scipy.stats import ortho_group,random_correlation
 from scipy.linalg import block_diag,sqrtm
+import scipy.stats as ss
+import random
 
 def confidence_ellipse(ax, cov, n_std=3.0, facecolor='none', **kwargs):
     pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
@@ -147,6 +149,8 @@ def generate_cov(TraceConstraint,d,N,blocks=1,color="white",noise_method="random
     return covs
 
 def add_noise(X,SNR,cov):
+    random.seed(123)
+    np.random.seed(123)
 
     N,d = X.shape
 
@@ -169,7 +173,8 @@ def add_noise(X,SNR,cov):
     return X
 
 def add_jitter(X,width,lb,ub):
-
+    random.seed(123)
+    np.random.seed(123)
 
     jitter = np.random.uniform(-width/2,width/2,size=X.shape)
 
@@ -207,6 +212,9 @@ def add_noise_trajectory(X,SNR,cov,n_radars):
     if cov is None:
         return X
 
+    random.seed(123)
+    np.random.seed(123)
+
     noise = np.zeros_like(X)
 
     for i in range(n_radars):
@@ -226,6 +234,39 @@ def add_noise_trajectory(X,SNR,cov,n_radars):
 
     return X
 
+def add_rice_noise(X,SNR,K=2):
+    # X is Number of Trajectores x Number of Time Stpes x (Number of radars * Number of frequencies)
+    # if X.ndim == 3:
+    #     N,TN,d = X.shape
+    # if X.ndim == 2:
+    #     N,d = X.shape
+    # parameters of the distribution....
+    # zeta = np.sqrt(0.5 * X / (10 ** (SNR / 10)));
+    #
+    # A = np.sqrt(K / (K + 1) * X);
+    #
+    # s = np.sqrt(1 / 2 * (A ** 2) / (K) + zeta ** 2);
+
+    random.seed(123)
+    np.random.seed(123)
+
+    A = np.sqrt((K*10**(SNR/10)*X) / ((K+1)*(10**(SNR/10)+1)));
+    zeta = np.sqrt((A**2 * (K+1)) / (2*K *10**(SNR/10)));
+    s = np.sqrt(1/2*(A**2)/(K) + zeta**2);
+
+    rv = ss.ncx2(df=np.ones_like(A)*2, nc=(A ** 2) / (s ** 2), scale=s ** 2)
+
+    # print("Noise Power: ", (2 * zeta ** 2).mean())
+    # print("Signal Power: ", (A ** 2 / K + A ** 2).mean())
+    # print("SNR: ",10*np.log10(((A ** 2 / K + A ** 2))/(2 * zeta ** 2)).mean())
+
+    # noise = rv.rvs()
+    # print(noise.max())
+    # np.corcoeff(noise.ravel(),X.ravel())
+
+    return rv.rvs()
+
+
 def add_noise_block(X,SNR,cov,n_radars):
     N, d = X.shape
     f = d // n_radars
@@ -233,6 +274,9 @@ def add_noise_block(X,SNR,cov,n_radars):
         return X
 
     noise = np.zeros((N,d))
+
+    random.seed(123)
+    np.random.seed(123)
 
     for i in range(n_radars):
         TraceConstraint = (X[:,i*f : (i+1)*f]**2).sum(1) / (10 ** (SNR / 10))

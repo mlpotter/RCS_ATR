@@ -374,7 +374,7 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
 
     end_time = time()
     # if verbose:
-    print("Dataset Creation Time: {:.3f}".format(end_time-start_time))
+    print("Trajectory Dataset Creation Time: {:.3f}s".format(end_time-start_time))
 
     return dataset
 
@@ -508,7 +508,7 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
             ax2.plot(predictions[:t+1,i],linewidth=3,color=colors[i])
 
         ax2.set_xlim([0,TN])
-        ax2.set_ylim([0,1])
+        ax2.set_ylim([0,1.05])
         ax2.set_ylabel("Class Prediction Probability",fontsize=20)
         ax2.set_xlabel(f"Time ({dataset['time_step_size']} resolution [s])",fontsize=20)
         ax2.set_title(f"True Label {int(dataset['ys'][0].item())}",fontsize=20)

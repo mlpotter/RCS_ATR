@@ -55,10 +55,9 @@ angles = list(zip(azimuths,elevations))
 model_choices = ["logistic","xgboost","mlp"]
 snr_constraints = [-20.0,-10.0,0.0,10.0,20.0]
 
-# noises = [("white","random"),("white","constant"),("color","random")]
-noises = [("color","random")]
-jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(80.0,80.0)]
-# jitter_widths = [(0.0,0.0)]#,(10.0,10.0)]
+K = [10.0]
+# jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(80.0,80.0)]
+jitter_widths = [(0.0,0.0)]#,(10.0,10.0)]
 
 # Trajectory Parameters
 TN = 100
@@ -69,11 +68,11 @@ pitch_range = "np.pi/20"
 roll_range = "0"
 
 fusion_methods = ["average","fusion","max"]
-experiment_name = "radar_target_recognition_snr_trajectory_geometry_avg_seeded"
+experiment_name = "radar_target_recognition_snr_trajectory_nogeometry_avg_rice"
 random_seed = 123
 
 
-geometry_use = "geometry"
+geometry_use = "no-geometry"
 mlflow_track = "mlflow_track"
 
 previous_runs = get_experiment_df(experiment_name)
@@ -88,12 +87,11 @@ if __name__ == "__main__":
                 for MC_trialsi in MC_trials:
                     for n_radar in n_radars:
                         for snr_constraint in snr_constraints:
-                            for angle in angles:
+                            for k in K:
+                                for angle in angles:
 
-                                (azimuth_center,azimuth_spread),(elevation_center,elevation_spread) = angle
+                                    (azimuth_center,azimuth_spread),(elevation_center,elevation_spread) = angle
 
-                                for noise_choices in noises:
-                                    noise_color, noise_method = noise_choices
 
                                     for width in jitter_widths:
                                         azimuth_jitter_width,elevation_jitter_width = width
@@ -107,8 +105,7 @@ if __name__ == "__main__":
                                         f"--yaw_range={yaw_range} "\
                                         f"--pitch_range={pitch_range} "\
                                         f"--roll_range={roll_range} "\
-                                        f"--noise_method={noise_method} "\
-                                        f"--color={noise_color} "\
+                                        f"--K={k} "\
                                         f"--elevation_center={elevation_center} "\
                                         f"--elevation_spread={elevation_spread} "\
                                         f"--azimuth_center={azimuth_center} "\
@@ -121,7 +118,7 @@ if __name__ == "__main__":
                                         f"--elevation_jitter_width={elevation_jitter_width} " \
                                         f"--azimuth_jitter_bounds=0_180 " \
                                         f"--elevation_jitter_bounds=-90_90 " \
-                                        f"--model_choice={model_choice} "\
+                                        f"--model_choice={model_choice} "\                                        
                                         f"--experiment_name={experiment_name} " \
                                         f"--fusion_method={fusion_method} "\
                                         f"--random_seed={random_seed}"
@@ -135,8 +132,8 @@ if __name__ == "__main__":
 
                                         print(file)
                                         if blocking:
-                                            os.system(f"python main_mc_trajectory_SNR.py {file}")
+                                            os.system(f"python main_mc_trajectory_rice.py {file}")
                                         else:
-                                            file_full = f"python main_mc_trajectory_SNR.py {file}"
+                                            file_full = f"python main_mc_trajectory_rice.py {file}"
                                             print(f"sbatch execute.bash '{file_full}'")
                                             Popen(f"sbatch execute.bash '{file_full}'",shell=True)

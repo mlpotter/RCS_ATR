@@ -129,7 +129,7 @@ def main():
 
     from sklearn.metrics import classification_report
 
-    from src.noise_generator import add_noise, add_noise_block,add_noise_trajectory
+    from src.noise_generator import add_noise, add_noise_block,add_noise_trajectory,add_rice_noise
     from src.data_loader import DRONE_RCS_CSV_TO_XARRAY, RCS_TO_DATASET, RCS_TO_DATASET_Single_Point, dataset_to_tensor, \
         dataset_train_test_split
 
@@ -147,6 +147,16 @@ def main():
     from src.trajectory_loader import target_with_predictions_gif
     from src.misc import radar_grid
 
+    exponentiate = True
+    n_radars = 4
+    use_geometry = False
+    make_gif = False
+    K=10
+
+    noise_color="color"
+    noise_method="random"
+    SNR_constraint = 20
+    num_points = 10000
 
     CLASSIFIERS = dict(CLASSIFIERS)
 
@@ -158,7 +168,7 @@ def main():
     classifiers = [CLASSIFIERS[name] for name in classifiers_names]   #+ [MLPClassifier]
 
     DRONE_RCS_FOLDER = "..\Drone_RCS_Measurement_Dataset"
-    drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER)
+    drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER,exponentiate=exponentiate)
     drone_names = list(drone_rcs_dictionary.keys())
     n_freq = len(drone_rcs_dictionary[drone_names[0]].coords["f[GHz]"])
 
@@ -169,17 +179,10 @@ def main():
     pitch_lim = [-np.pi / 5, np.pi / 5]
     roll_lim = [-np.pi / 5, np.pi / 5]
 
-    n_radars = 4
 
 
     radars = radar_grid(n_radars=n_radars,xlim=xlim,ylim=ylim)
 
-    use_geometry = True
-
-    noise_color="color"
-    noise_method="random"
-    SNR_constraint = -20
-    num_points = 10000
 
     covs_single = generate_cov(TraceConstraint=1, d=n_freq, N=1,
                                blocks=n_radars, color=noise_color,
@@ -190,7 +193,8 @@ def main():
                                           elevation_center=0,elevation_spread=190,
                                           num_points=num_points,method="random",verbose=False)
 
-    dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
+    # dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
+    dataset_single["RCS"] = add_rice_noise(dataset_single["RCS"],SNR=SNR_constraint,K=K)
 
     dataset_train, dataset_test = dataset_train_test_split(dataset_single)
 
@@ -203,12 +207,15 @@ def main():
     models, predictions = clf.fit(X_train, X_test, y_train, y_test)
 
     print(models.to_string())
-
+    #
     dataset_multi = RCS_TO_DATASET(drone_rcs_dictionary, radars, yaw_lim, pitch_lim, roll_lim, bounding_box,
                                    num_points=100)
 
-    dataset_multi["RCS"] = add_noise_block(dataset_multi["RCS"],SNR_constraint, covs_single[0],
-                                           n_radars)
+    dataset_multi["RCS"] = add_rice_noise(dataset_multi["RCS"],SNR=SNR_constraint,K=K)
+
+
+    # dataset_multi["RCS"] = add_noise_block(dataset_multi["RCS"],SNR_constraint, covs_single[0],
+    #                                        n_radars)
 
 
     for classifiers_name in classifiers_names:
@@ -227,8 +234,9 @@ def main():
                                           azimuth_center=90,azimuth_spread=180,
                                           elevation_center=0,elevation_spread=190,
                                           num_points=num_points,method="random")
+    dataset_single["RCS"] = add_rice_noise(dataset_single["RCS"],SNR=SNR_constraint,K=K)
 
-    dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
+    # dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
 
 
 
@@ -255,8 +263,8 @@ def main():
                                               TN=TN, radars=radars,
                                               num_points=N_traj,
                                               verbose=True)
-
-    dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"],SNR_constraint,covs_single[0],n_radars)
+    dataset_multi["RCS"] = add_rice_noise(dataset_multi["RCS"],SNR=SNR_constraint,K=K)
+    # dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"],SNR_constraint,covs_single[0],n_radars)
 
 
     # ============== GENERATE FIGURES ============= #
@@ -297,6 +305,8 @@ def main():
                 f"Logistic Regression {1}"])
 
     plt.title(f"RBC Models - SNR={SNR_constraint}")
+    plt.ylim([0,1.05])
+
     plt.show()
 
 
@@ -321,6 +331,7 @@ def main():
     plt.plot(xgb_accuracy_fuse,color="purple",marker="o",linestyle="-")
     plt.plot(xgb_accuracy_avg,color="purple",marker="+",linestyle="-")
     plt.plot(xgb_accuracy_max,color="purple",marker="x",linestyle="-")
+    plt.ylim([0,1.05])
 
 
 
@@ -333,8 +344,8 @@ def main():
     plt.title(f"RBC Fusion - SNR={SNR_constraint}")
     plt.show()
 
-
-    target_with_predictions_gif(dataset_multi,pred_xgb_history_fuse,radars,plotting_args=plotting_args)
+    if make_gif:
+        target_with_predictions_gif(dataset_multi,pred_xgb_history_fuse,radars,plotting_args=plotting_args)
 
 
 if __name__ == "__main__":

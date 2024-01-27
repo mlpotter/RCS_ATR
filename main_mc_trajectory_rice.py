@@ -5,7 +5,7 @@ patch_sklearn()
 
 from src.data_loader import DRONE_RCS_CSV_TO_XARRAY,RCS_TO_DATASET,RCS_TO_DATASET_Single_Point,dataset_to_tensor,dataset_train_test_split
 from src.trajectory_loader import RCS_TO_DATASET_Trajectory
-from src.noise_generator import add_noise,generate_cov,add_noise_block,add_jitter,add_noise_trajectory
+from src.noise_generator import add_noise,generate_cov,add_rice_noise,add_jitter
 from src.models import distributed_recursive_classifier
 from src.misc import radar_grid
 import xarray as xr
@@ -28,6 +28,7 @@ from xgboost import XGBClassifier
 import os
 import sys
 import contextlib
+from time import time
 
 import argparse
 
@@ -59,7 +60,7 @@ def main(args):
     DRONE_RCS_FOLDER =  "Drone_RCS_Measurement_Dataset"
 
     # convert the csv data into xarrays (concatenate all the frequencies)
-    drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER)
+    drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER,exponentiate=True)
 
     # get the drone names and the number frequencies
     drone_names = list(drone_rcs_dictionary.keys())
@@ -87,16 +88,11 @@ def main(args):
         # select the model with/without data standard normalization
         clf = select_model(args.model_choice)
 
-
-        # generate unit trace covariance matrix for single radar scenario
-        covs_single = generate_cov(TraceConstraint=1, d=n_freq, N=args.MC_Trials,
-                                    blocks=args.n_radars, color=args.color,
-                                    noise_method=args.noise_method)
-
         # iterate MC trials
         accuracy_time_fuse_avg = 0
         accuracy_time_single_avg = 0
         for mc_trial in range(args.MC_Trials):
+
             print("\n","="*10,f"MC TRIAL {mc_trial}","="*10)
 
             # generate the uncorrupted RCS signals in the form of dictionary {"RCS":,"ys","azimuth":,"elevation":} for single radar
@@ -107,7 +103,8 @@ def main(args):
                                                          method=args.single_method,random_seed=args.random_seed+10*mc_trial)
 
             # add gaussian noise to RCS at a fixed SNR value
-            dataset_single["RCS"] = add_noise(dataset_single["RCS"],args.SNR_constraint,covs_single[mc_trial])
+            dataset_single["RCS"] = add_rice_noise(dataset_single["RCS"], SNR=args.SNR_constraint, K=args.K)
+
             # add the AZ/EL jitter noise to the data
             dataset_single["azimuth"] = add_jitter(dataset_single["azimuth"],args.azimuth_jitter_width,eval(args.azimuth_jitter_bounds.split("_")[0]),eval(args.azimuth_jitter_bounds.split("_")[1]))
             dataset_single["elevation"] = add_jitter(dataset_single["elevation"],args.elevation_jitter_width,eval(args.elevation_jitter_bounds.split("_")[0]),eval(args.elevation_jitter_bounds.split("_")[1]))
@@ -120,8 +117,10 @@ def main(args):
             # X_test,y_test = dataset_to_tensor(dataset_test,args.geometry)
 
             # fit single radar CLF
+            start_time = time()
             clf.fit(X_train, y_train.ravel())
-
+            end_time = time()
+            print("CLF Fit Time {:.2f} s".format(end_time-start_time))
             # get the accuracy of a single radar on balanced dataset
             # y_pred = clf.predict(X_test)
             # accuracy_single = accuracy_score(y_test.ravel(), y_pred.ravel())
@@ -138,11 +137,11 @@ def main(args):
                                                       roll_range=eval(args.roll_range),
                                                       bounding_box=bounding_box,
                                                       TN=args.TN, radars=radars,
-                                                      num_points=2000,random_seed=args.random_seed+10*mc_trial,#X_test.shape[0],
+                                                      num_points=100,random_seed=args.random_seed+10*mc_trial,#X_test.shape[0],
                                                       verbose=False)
 
             # add gaussian noise to RCS at a fixed SNR value.. Note we use a block diagonal matrix (so we assume each radar measure is independent)
-            dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"], args.SNR_constraint, covs_single[mc_trial], args.n_radars)
+            dataset_multi["RCS"] = add_rice_noise(dataset_multi["RCS"], SNR=args.SNR_constraint, K=args.K)
 
             # add the AZ/EL jitter noise to the data
             dataset_multi["azimuth"] = add_jitter(dataset_multi["azimuth"],args.azimuth_jitter_width,eval(args.azimuth_jitter_bounds.split("_")[0]),eval(args.azimuth_jitter_bounds.split("_")[1]))
@@ -160,7 +159,7 @@ def main(args):
             accuracy_single = accuracy_score(y_test.ravel(), y_pred_1.argmax(-1).ravel())
             results_single[mc_trial] = accuracy_single
 
-            print("MC Trials={} Accuracy={:.3f} Accuracy Single={:.3f}".format(mc_trial,accuracy_distributed,accuracy_single))
+            print("MC Trials={} Accuracy={:.6f} Accuracy Single={:.6f}".format(mc_trial,accuracy_distributed,accuracy_single))
 
             # after thoughts
             drone_class_names = label_encoder.inverse_transform(np.arange(len(drone_rcs_dictionary)))
@@ -199,6 +198,7 @@ def main(args):
             plt.title(f"RBC Models - SNR={args.SNR_constraint}")
             plt.savefig(os.path.join("results","temp",f"rbc_accuracy_{mc_trial}.png"))
             plt.close()
+
 
         print("Multi Radar Accuracy:", results.mean())
         print("Single Radar Accuracy:", results_single.mean())
@@ -242,8 +242,7 @@ if __name__ == "__main__":
     parser.add_argument('--time_step_size', default=0.1,type=float, help='The Velocity of the Drone in the forward direction')
 
     # RCS NOISE PARAMETERS
-    parser.add_argument('--noise_method', type=str,default="random", help='The noise method to choose from (see code for examples)')
-    parser.add_argument('--color', type=str,default="white", help='The type of noise (color,white)')
+    parser.add_argument('--K',type=float,default=10,help="The scatter to direct path ratio, Rice Fading Gain")
     parser.add_argument('--SNR_constraint',type=float,default=0,help="The signal to noise ratio")
     parser.add_argument('--azimuth_center', default=90,type=float, help='azimuth center to sample for target single point RCS, bound box for random')
     parser.add_argument('--azimuth_spread', default=5,type=float, help='std of sample for target single point RCS, bound box for random')
@@ -263,8 +262,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    experiment_name = f"experiment=num_points={args.num_points} n_radars={args.n_radars} " \
-                      f"color={args.color} noise_method={args.noise_method} MC_trials={args.MC_Trials}" + ".xlsx"
 
     from datetime import datetime
     from pytz import timezone
@@ -274,7 +271,7 @@ if __name__ == "__main__":
 
     print(f"Model Choice = {args.model_choice}")
     print(f"Number of Radars = {args.n_radars}")
-    print(f"Noise Method = {args.noise_method} Noise Color={args.color}")
+    print(f"Fading Gain= {args.K}")
     print(f"Fusion Method = {args.fusion_method}")
     print(f"SNR = {args.SNR_constraint}")
     print(f"Geometry = {args.geometry}")
