@@ -576,10 +576,11 @@ def main():
     import matplotlib.pyplot as plt
     import matplotlib as mpl
     from src.misc import radar_grid
+    import xarray as xr
     mpl.use('Qt5Agg')
 
     TN = 50
-    N_traj = 10
+    N_traj = 100
     time_step_size = 0.1
     vx = 50
     yaw_range , pitch_range , roll_range = np.pi/10,np.pi/15,np.pi/15
@@ -587,6 +588,7 @@ def main():
     bounding_box = np.array([xlim,ylim,zlim])
     num_radars = 4
     SNR = 5
+    exponentiate = True
 
     plotting_args = {"arrow_length": 5, "arrow_linewidth": 2}
 
@@ -620,7 +622,7 @@ def main():
     plt.show()
 
     DRONE_RCS_FOLDER =  "../Drone_RCS_Measurement_Dataset"
-    drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER,visualize=False)
+    drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER,visualize=False,exponentiate=exponentiate)
 
     dataset = RCS_TO_DATASET_Single_Trajectory(RCS_xarray_dictionary=drone_rcs_dictionary,
                                                time_step_size=time_step_size, vx=vx,
@@ -659,6 +661,28 @@ def main():
                                                TN=TN,radars=radars,
                                                num_points=N_traj,
                                                verbose=True)
+
+    # plot a mapping of azimuth and elevation to RCS
+    sample_idx = 105
+    fig,axes = plt.subplots(1,3,figsize=(15,5))
+    axes[0].plot(dataset_multi["RCS"][sample_idx,:,0].ravel(),'b-')
+
+    axes[0].plot(drone_rcs_dictionary[dataset_multi["ys"][sample_idx].item()].interp(azimuth=xr.DataArray(dataset_multi["azimuth"][sample_idx,:,0],dims="points1"),
+                                                                                     elevation=xr.DataArray(dataset_multi["elevation"][sample_idx,:,0],dims="points1")).loc[26].values,',r--')
+    axes[0].set_title("RCS")
+    axes[1].plot(dataset_multi["azimuth"][sample_idx,:,0].ravel())
+    axes[1].plot(dataset_multi["elevation"][sample_idx,:,0].ravel())
+    axes[1].legend(["Azimuth","Elevation"])
+    axes[1].set_title("Target Orientation")
+
+    temp_data = 10 * np.log10(drone_rcs_dictionary[dataset_multi["ys"][sample_idx].item()].loc[26])
+    vmax = np.max(temp_data)*1.5
+    vmin = np.min(temp_data)*0.5
+    xr.plot.imshow(temp_data,vmin=vmin,vmax=vmax,ax=axes[2],cmap="jet")
+    axes[2].plot(dataset_multi["elevation"][sample_idx,:,0].ravel(),dataset_multi["azimuth"][sample_idx,:,0].ravel(),linewidth=5,color="k")
+    axes[2].plot(dataset_multi["elevation"][sample_idx,0,0].ravel(),dataset_multi["azimuth"][sample_idx,0,0].ravel(),markersize=20,color="purple",marker="*")
+    axes[2].plot(dataset_multi["elevation"][sample_idx,-1,0].ravel(),dataset_multi["azimuth"][sample_idx,-1,0].ravel(),markersize=20,color="purple",marker="o")
+    plt.show()
 
     print("MULTI")
     add_noise_trajectory(dataset_multi["RCS"],SNR=SNR,cov=covs_single[0],n_radars=num_radars)

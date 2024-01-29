@@ -5,7 +5,7 @@ patch_sklearn()
 
 from src.data_loader import DRONE_RCS_CSV_TO_XARRAY,RCS_TO_DATASET,RCS_TO_DATASET_Single_Point,dataset_to_tensor,dataset_train_test_split
 from src.trajectory_loader import RCS_TO_DATASET_Trajectory
-from src.noise_generator import add_noise,generate_cov,add_noise_block,add_jitter,add_noise_trajectory
+from src.noise_generator import add_noise,generate_cov,add_jitter,add_noise_trajectory
 from src.models import distributed_recursive_classifier
 from src.misc import radar_grid
 import xarray as xr

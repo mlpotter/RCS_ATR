@@ -141,11 +141,12 @@ def main():
     from lazypredict.Supervised import LazyClassifier, CLASSIFIERS
 
     import random
-
+    import xarray as xr
     from sklearn.neural_network import MLPClassifier
 
     from src.trajectory_loader import target_with_predictions_gif
     from src.misc import radar_grid
+    import matplotlib.pyplot as plt
 
     exponentiate = True
     n_radars = 4
@@ -249,7 +250,7 @@ def main():
     N_traj = 100
     time_step_size = 0.1
     vx = 50
-    yaw_range , pitch_range , roll_range = np.pi/15,np.pi/20,0
+    yaw_range , pitch_range , roll_range = 0,0,0
     # xlim = [-50, 50];  ylim = [-50, 50]; zlim = [150, 300]
     xlim = [-150, 150];  ylim = [-150, 150]; zlim = [200, 300]
     #
@@ -263,6 +264,30 @@ def main():
                                               TN=TN, radars=radars,
                                               num_points=N_traj,
                                               verbose=True)
+
+
+    # plot a mapping of azimuth and elevation to RCS
+    sample_idx = 105
+    fig,axes = plt.subplots(1,3,figsize=(15,5))
+    axes[0].plot(dataset_multi["RCS"][sample_idx,:,0].ravel(),'b-')
+
+    axes[0].plot(drone_rcs_dictionary[dataset_multi["ys"][sample_idx].item()].interp(azimuth=xr.DataArray(dataset_multi["azimuth"][sample_idx,:,0],dims="points1"),
+                                                                                     elevation=xr.DataArray(dataset_multi["elevation"][sample_idx,:,0],dims="points1")).loc[26].values,',r--')
+    axes[0].set_title("RCS")
+    axes[1].plot(dataset_multi["azimuth"][sample_idx,:,0].ravel())
+    axes[1].plot(dataset_multi["elevation"][sample_idx,:,0].ravel())
+    axes[1].legend(["Azimuth","Elevation"])
+    axes[1].set_title("Target Orientation")
+
+    temp_data = 10 * np.log10(drone_rcs_dictionary[dataset_multi["ys"][sample_idx].item()].loc[26])
+    vmax = np.max(temp_data)*1.5
+    vmin = np.min(temp_data)*0.5
+    xr.plot.imshow(temp_data,vmin=vmin,vmax=vmax,ax=axes[2],cmap="jet")
+    axes[2].plot(dataset_multi["elevation"][sample_idx,:,0].ravel(),dataset_multi["azimuth"][sample_idx,:,0].ravel(),linewidth=5,color="k")
+    axes[2].plot(dataset_multi["elevation"][sample_idx,0,0].ravel(),dataset_multi["azimuth"][sample_idx,0,0].ravel(),markersize=15,color="k",marker="*")
+    axes[2].plot(dataset_multi["elevation"][sample_idx,-1,0].ravel(),dataset_multi["azimuth"][sample_idx,-1,0].ravel(),markersize=15,color="k",marker="x")
+    plt.show()
+
     dataset_multi["RCS"] = add_rice_noise(dataset_multi["RCS"],SNR=SNR_constraint,K=K)
     # dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"],SNR_constraint,covs_single[0],n_radars)
 
@@ -277,7 +302,6 @@ def main():
     _,pred_logistic_history_1 = drc.predict(clf.models["LogisticRegression"],dataset_multi,fusion_method="fusion")
     _,pred_xgb_history_1 = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="fusion")
 
-    import matplotlib.pyplot as plt
     plt.figure()
     xgb_history = pred_xgb_history.argmax(-1)
     xgb_accuracy = (xgb_history == dataset_multi["ys"]).mean(0)
