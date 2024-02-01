@@ -45,35 +45,71 @@ class distributed_classifier(object):
 
 class distributed_recursive_classifier(object):
     def __init__(self,n_classes,use_geometry=False):
+        """
+        @param n_classes: int or float. The number of target class labels
+        @param use_geometry: bool. True - include the azimuth and elevation and covariates. False - only use RCS as features
+        """
+
         self.use_geometry = use_geometry
 
+        # the number of target class labels
         self.n_classes = n_classes
+
+        # assume marginal distribution p(c) and prior p(c) is 1/|C|
         self.pc = 1/self.n_classes
 
     def predict_instant(self,clf,dataset,t=0,fusion_method="average"):
+        """
+        @param clf: the ML model as a scikit-learn object
+        @param dataset: dictionary {"RCS": RCSs array of shape Number Trajectories x Number of time steps x (Number of radars * Number of frequencies)
+        @param t: the time step/slice to predict on
+        @param fusion_method: str. Average - the softmax of classification vectors from each radar. Max - the maximum across all classification vectors from each radar. Fusion - the bayesian fusion method.
+        @return: numpy array of probability predicions. Number of trajectories x Number of Classes
+        """
+
+        # the number of radars in the experiment
         n_radars = dataset["n_radars"]
+
+        # the number of unique frequencies in the data
         n_freq = dataset["n_freq"]
 
+        # numpy array of RCS data. Number of Trajectories x (Number of radars * Number of Frequencies)
         RCS = dataset["RCS"][:,t,:]
+
+        # numpy array of the azimuth and eleevation data. Number of Trajectories x Number of radars
         azimuth = dataset["azimuth"][:,t,:]
         elevation = dataset["elevation"][:,t,:]
+
+        # number of target class labels
         n_classes = len(np.unique(dataset["ys"]))
 
+        # initialize empty array to hold all predictions across samples and radars
+        # Number of trajectories x Number of Classes x Number of Radars
         predictions = np.zeros((RCS.shape[0],n_classes,n_radars))
 
+        # Iterate through each radar to make a individual prediction
         for i in range(n_radars):
 
+            # subset the RCS values corresponding to the one radar.
+            # Number of trajectories x Number of Frequencies
             X = RCS[:,(i*n_freq):((i+1)*n_freq)]
+
+            # if True, append the azimuth and elevation to the input feature X
+            # Number of trajectories x (Number of Frequencies + 2)
             if self.use_geometry:
                 azimuth_i = azimuth[:, [i]]
                 elevation_i = elevation[:, [i]]
                 X = np.hstack((X,azimuth_i,elevation_i))
 
-            # number of samples x number of classes
+            # Have the individual ML model make a prediction
+            # number of trajectories x number of classes
             y_pred = clf.predict_proba(X)
 
+            # save the radar prediction for all the trajectories at time step t
+            # Number of trajectories x Numbber of Classes
             predictions[:,:,i] = y_pred
 
+        # basec on the fusion method we take a soft-vote, maximum, or bayesian fusion
         if fusion_method == "average":
             predictions = predictions.mean(-1)#.argmax(1,keepdims=True)
 
@@ -88,10 +124,19 @@ class distributed_recursive_classifier(object):
         else:
             raise Exception("Not a valid fusion method of multiple radars")
 
+        # Number of Trajectories x Number of Classes
         return predictions
 
     def predict(self,clf,dataset,fusion_method="fusion",record=True):
+        """
 
+        @param clf: the ML model as a scikit-learn object
+        @param dataset: dictionary {"RCS": RCSs array of shape Number Trajectories x Number of time steps x (Number of radars * Number of frequencies)
+        @param fusion_method: str. Average - the softmax of classification vectors from each radar. Max - the maximum across all classification vectors from each radar. Fusion - the bayesian fusion method.
+        @param record: bool. Whether to keep all the fused probabilities over the entire trajectory. Number of Trajectories x Number of Time Steps x Number of classes
+        @return:
+        """
+        # the needed dimensions
         N_traj, N_time, d = dataset["RCS"].shape
 
         # initialize p_cprev_given_zpast as prior for every trajectory
@@ -102,21 +147,29 @@ class distributed_recursive_classifier(object):
             # Number of Trajectories x Number of Time Steps x Number of Classes
             p_c_over_time = np.zeros((N_traj,N_time,self.n_classes))
 
+        # iterate through every time step of the trajectory
         for t in np.arange(N_time):
 
             # Number of Trajectories x Number of Classes
+            # get the instant bayesian fused discrimination classification p(c|z_t)
             p_c_given_z = self.predict_instant(clf,dataset,t=t,fusion_method=fusion_method)
 
             # Number of Trajectories x Number of Classes
+            # get the numerator p(c|zt)p(c|z1,...,zt-1)
             numerator = p_c_given_z * p_c_given_past
 
-            denominator = np.sum(p_c_given_z * p_c_given_past,axis=-1,keepdims=True)
+            # get the denominator sum(p(c|zt)p(c|z1,...,zt-1)) over c
+            # Number of Trajectories x 1
+            denominator = np.sum(numerator,axis=-1,keepdims=True) #np.sum(p_c_given_z * p_c_given_past,axis=-1,keepdims=True)
 
+            # Number of Trajectories x Number of Classes
+            # The posterior over all time steps and features p(C|z1,...zt)
             p_c_given_all = numerator / denominator
 
             if record:
                 p_c_over_time[:,t,:] = p_c_given_all
 
+            # the current posterior becomes the next prior
             p_c_given_past = p_c_given_all
 
         return p_c_given_all,p_c_over_time
@@ -151,12 +204,12 @@ def main():
     exponentiate = True
     n_radars = 4
     use_geometry = False
-    make_gif = False
+    make_gif = True
     K=10
 
     noise_color="color"
     noise_method="random"
-    SNR_constraint = 20
+    SNR_constraint = 0
     num_points = 10000
 
     CLASSIFIERS = dict(CLASSIFIERS)
@@ -194,8 +247,8 @@ def main():
                                           elevation_center=0,elevation_spread=190,
                                           num_points=num_points,method="random",verbose=False)
 
-    # dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
-    dataset_single["RCS"] = add_rice_noise(dataset_single["RCS"],SNR=SNR_constraint,K=K)
+    dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
+    # dataset_single["RCS"] = add_rice_noise(dataset_single["RCS"],SNR=SNR_constraint,K=K)
 
     dataset_train, dataset_test = dataset_train_test_split(dataset_single)
 
@@ -212,11 +265,11 @@ def main():
     dataset_multi = RCS_TO_DATASET(drone_rcs_dictionary, radars, yaw_lim, pitch_lim, roll_lim, bounding_box,
                                    num_points=100)
 
-    dataset_multi["RCS"] = add_rice_noise(dataset_multi["RCS"],SNR=SNR_constraint,K=K)
-
-
-    # dataset_multi["RCS"] = add_noise_block(dataset_multi["RCS"],SNR_constraint, covs_single[0],
-    #                                        n_radars)
+    # dataset_multi["RCS"] = add_rice_noise(dataset_multi["RCS"],SNR=SNR_constraint,K=K)
+    #
+    #
+    dataset_multi["RCS"] = add_noise_block(dataset_multi["RCS"],SNR_constraint, covs_single[0],
+                                           n_radars)
 
 
     for classifiers_name in classifiers_names:
@@ -235,9 +288,9 @@ def main():
                                           azimuth_center=90,azimuth_spread=180,
                                           elevation_center=0,elevation_spread=190,
                                           num_points=num_points,method="random")
-    dataset_single["RCS"] = add_rice_noise(dataset_single["RCS"],SNR=SNR_constraint,K=K)
-
-    # dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
+    # dataset_single["RCS"] = add_rice_noise(dataset_single["RCS"],SNR=SNR_constraint,K=K)
+    #
+    dataset_single["RCS"] = add_noise(dataset_single["RCS"],SNR_constraint,covs_single[0])
 
 
 
@@ -250,12 +303,12 @@ def main():
     N_traj = 100
     time_step_size = 0.1
     vx = 50
-    yaw_range , pitch_range , roll_range = 0,0,0
+    yaw_range , pitch_range , roll_range = np.pi/15,np.pi/20,0
     # xlim = [-50, 50];  ylim = [-50, 50]; zlim = [150, 300]
     xlim = [-150, 150];  ylim = [-150, 150]; zlim = [200, 300]
     #
     bounding_box = np.array([xlim,ylim,zlim])
-    plotting_args = {"arrow_length": 10, "arrow_linewidth": 2}
+    plotting_args = {"arrow_length": 15, "arrow_linewidth": 2}
 
     dataset_multi = RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary=drone_rcs_dictionary,
                                               time_step_size=time_step_size, vx=vx,
@@ -267,7 +320,7 @@ def main():
 
 
     # plot a mapping of azimuth and elevation to RCS
-    sample_idx = 105
+    sample_idx = 0
     fig,axes = plt.subplots(1,3,figsize=(15,5))
     axes[0].plot(dataset_multi["RCS"][sample_idx,:,0].ravel(),'b-')
 
@@ -284,12 +337,12 @@ def main():
     vmin = np.min(temp_data)*0.5
     xr.plot.imshow(temp_data,vmin=vmin,vmax=vmax,ax=axes[2],cmap="jet")
     axes[2].plot(dataset_multi["elevation"][sample_idx,:,0].ravel(),dataset_multi["azimuth"][sample_idx,:,0].ravel(),linewidth=5,color="k")
-    axes[2].plot(dataset_multi["elevation"][sample_idx,0,0].ravel(),dataset_multi["azimuth"][sample_idx,0,0].ravel(),markersize=15,color="k",marker="*")
-    axes[2].plot(dataset_multi["elevation"][sample_idx,-1,0].ravel(),dataset_multi["azimuth"][sample_idx,-1,0].ravel(),markersize=15,color="k",marker="x")
+    axes[2].plot(dataset_multi["elevation"][sample_idx,0,0].ravel(),dataset_multi["azimuth"][sample_idx,0,0].ravel(),markersize=20,color="purple",marker="*")
+    axes[2].plot(dataset_multi["elevation"][sample_idx,-1,0].ravel(),dataset_multi["azimuth"][sample_idx,-1,0].ravel(),markersize=20,color="purple",marker="o")
     plt.show()
 
-    dataset_multi["RCS"] = add_rice_noise(dataset_multi["RCS"],SNR=SNR_constraint,K=K)
-    # dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"],SNR_constraint,covs_single[0],n_radars)
+    # dataset_multi["RCS"] = add_rice_noise(dataset_multi["RCS"],SNR=SNR_constraint,K=K)
+    dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"],SNR_constraint,covs_single[0])
 
 
     # ============== GENERATE FIGURES ============= #

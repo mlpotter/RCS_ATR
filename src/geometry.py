@@ -96,11 +96,13 @@ def cartesian2spherical(x,y,z):
     rho = np.sqrt(x**2 + y**2 + z**2)
 
     # azimuth = tan(azimuth) = y/x
+    # get the azimuth between the target and radar
     azimuth = np.arctan2(y, x)
 
     # negative to assume Z-axis is looking from down
     # (-1)**(x<0) to denote if object is BEHIND, or BELOW
     # print("Elevation PRE: ",np.arccos(-z / rho) * 180/np.pi )
+    # get the elevation between the target and radar
     elevation = (-1)**(x<0).astype(float) * np.arccos(-z / rho)
     # print("Elevation POST: ",elevation)
     # return spherical coordinates
@@ -114,12 +116,20 @@ def spherical2cartersian(range_,rho,azimuth,elevation):
     return deltax,deltay,deltaz
 
 def calculate_3d_angles_ref(translations,yaws,pitchs,rolls, radars,coordinate_system="spherical"):
-    """Calculate angles for each point with all four corners."""
-
+    """
+    @param translations: the translation from the origin. Number of samples x Dimension of Coordinate (in this case 3)
+    @param yaws: the yaw for the yaw rotation matrix (rotation around the z axis). Number of samples x ,
+    @param pitchs: the pitch for the pitch rotation matrix (rotation around the y axis). Number of samples x ,
+    @param rolls: the roll for the roll rotation matrix (rotation around the x axis). Number of samples x ,
+    @param radars: A numpy array with the locations of the radar. Number of Radars x Dimension of Coordinates (in this case 3),
+    @param coordinate_system: which coordinate system we want to convert to
+    @return:
+    """
     # number of radars x dimension of coordinate (4)
     radars = np.hstack((radars, np.ones((radars.shape[0], 1))))
 
     # compute inverse transforms from radar coordinate frame vector to target coordinate frame vector
+    # the rotations needed to align the target coordinate frame with the world coordinate (radar) frame
     # number of simulate points x dimension of coordinate (4) x dimension of coordinate (4)
     inv_yaw = inverse_yaw_matrix(yaws)
     inv_pitch = inverse_pitch_matrix(pitchs)

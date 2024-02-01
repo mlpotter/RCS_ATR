@@ -3,7 +3,7 @@ patch_sklearn()
 
 
 
-from src.data_loader import DRONE_RCS_CSV_TO_XARRAY,RCS_TO_DATASET,RCS_TO_DATASET_Single_Point,dataset_to_tensor,dataset_train_test_split
+from src.data_loader import DRONE_RCS_CSV_TO_XARRAY,RCS_TO_DATASET_Single_Point,dataset_to_tensor,dataset_train_test_split
 from src.trajectory_loader import RCS_TO_DATASET_Trajectory
 from src.noise_generator import add_noise,generate_cov,add_jitter,add_noise_trajectory
 from src.models import distributed_recursive_classifier
@@ -33,6 +33,8 @@ import argparse
 
 import mlflow
 
+# select which scikit learn ML model to use
+# include standard normalization when appropriate
 def select_model(model_choice):
     if model_choice == "logistic":
         model = LogisticRegression(n_jobs=-2)
@@ -52,10 +54,11 @@ def select_model(model_choice):
     return clf
 
 def main(args):
+    # set the random seed for reproducibility
     np.random.seed(args.random_seed)
     random.seed(args.random_seed)
 
-    # folder where the drone rcs data files are located...
+    # folder where the drone rcs data files (.csv files) are located...
     DRONE_RCS_FOLDER =  "Drone_RCS_Measurement_Dataset"
 
     # convert the csv data into xarrays (concatenate all the frequencies)
@@ -68,6 +71,7 @@ def main(args):
     # specify where the target may be located with respect to world coordinate frame
     xlim = [-150, 150];  ylim = [-150, 150]; zlim = [200, 300]
 
+    # create the bounding box to initialize target locations and radar locations on the z=0 plane
     bounding_box = np.array([xlim, ylim, zlim])
 
 
@@ -138,11 +142,11 @@ def main(args):
                                                       roll_range=eval(args.roll_range),
                                                       bounding_box=bounding_box,
                                                       TN=args.TN, radars=radars,
-                                                      num_points=2000,random_seed=args.random_seed+10*mc_trial,#X_test.shape[0],
+                                                      num_points=200,random_seed=args.random_seed+10*mc_trial,#X_test.shape[0],
                                                       verbose=False)
 
             # add gaussian noise to RCS at a fixed SNR value.. Note we use a block diagonal matrix (so we assume each radar measure is independent)
-            dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"], args.SNR_constraint, covs_single[mc_trial], args.n_radars)
+            dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"], args.SNR_constraint, covs_single[mc_trial])
 
             # add the AZ/EL jitter noise to the data
             dataset_multi["azimuth"] = add_jitter(dataset_multi["azimuth"],args.azimuth_jitter_width,eval(args.azimuth_jitter_bounds.split("_")[0]),eval(args.azimuth_jitter_bounds.split("_")[1]))

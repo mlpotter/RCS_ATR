@@ -29,7 +29,7 @@ def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,
 
     for i,radar in enumerate(radars):
         ax.plot(radar[0], radar[1], radar[2], 'yo')
-        ax.text(radar[0], radar[1], radar[2],f'{i}',fontsize=20)
+        ax.text(radar[0], radar[1], radar[2],f'{i}')
 
 
     # # back from elevation of RCS DRONE DATA to SPHERICACL
@@ -53,10 +53,10 @@ def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,
     pitch = pitch_matrix(pitchs)
     roll = roll_matrix(rolls)
     trans = translation_matrix(translations)
-    plot_target_frames(ax,trans,yaw,pitch,roll,length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
+    # plot_target_frames(ax,trans,yaw,pitch,roll,length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
 
     for i,transi in enumerate(translations):
-        ax.plot(transi[0], transi[1], transi[2], 'bo')
+        ax.plot(transi[0], transi[1], transi[2], 'bo',markersize=10)
         # ax.text(transi[0], transi[1], transi[2],f'{i}',fontsize=20)
 
     # recover the radar position in the radar coordinate frame from the target coordinate frame information
@@ -68,21 +68,21 @@ def draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations,yaws,
         # sanity check to see if I recover the radar positions from perspective of target...
         radar_positions = np.matmul(transi @ yawi @ pitchi @ rolli, delta[i].T).T
 
-        ax.plot(radar_positions[:,0], radar_positions[:,1], radar_positions[:,2], 'ro')
+        ax.plot(radar_positions[:,0], radar_positions[:,1], radar_positions[:,2], 'ro',markersize=10)
 
 
     for i,target_position in enumerate(translations):
         for j,radar_position in enumerate(radar_positions):
-            ax.plot([radar_position[0], target_position[0]], [radar_position[1],  target_position[1]],[radar_position[2],  target_position[2]], 'r-')  # 'r-' means red color, solid line
+            ax.plot([radar_position[0], target_position[0]], [radar_position[1],  target_position[1]],[radar_position[2],  target_position[2]], 'r-',linewidth=5)  # 'r-' means red color, solid line
 
 
     # Optionally, you can add grid lines for better visualization
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     # Add some labels (optional)
-    ax.set_xlabel("X-axis")
-    ax.set_ylabel("Y-axis")
-
+    ax.set_xlabel("X-axis",weight="bold",labelpad=15)
+    ax.set_ylabel("Y-axis",weight="bold",labelpad=15)
+    ax.set_zlabel("Z-axis",weight="bold",labelpad=15)
 
 def radar_grid(n_radars,xlim,ylim):
     xs,ys = np.linspace(xlim[0],xlim[1],int(np.sqrt(n_radars))),np.linspace(ylim[0],ylim[1],int(np.sqrt(n_radars)))
@@ -96,7 +96,7 @@ def main():
 
     num_points = 1
     rad2deg = 180/np.pi
-    plotting_args =  {"arrow_length": 2, "arrow_linewidth": 3}
+    plotting_args =  {"arrow_length": 2, "arrow_linewidth": 8}
     # #
 
     # radars = np.array([(xlim[0], ylim[0], 0),
@@ -169,9 +169,9 @@ def main():
     translations_tests = [x+1e-8 for x in translations_tests]
 
     fig = plt.figure(figsize=(15,15))
-    SMALL_SIZE = 20
-    plt.rc('xtick', labelsize=SMALL_SIZE * 1)
-    plt.rc('ytick', labelsize=SMALL_SIZE * 1.)
+    SMALL_SIZE = 40
+    plt.rc('xtick', labelsize=SMALL_SIZE * 0.8)
+    plt.rc('ytick', labelsize=SMALL_SIZE * 0.8)
     plt.rc('font', size=SMALL_SIZE)
     plt.rc('axes', titlesize=SMALL_SIZE)
     plt.rc('axes', labelsize=SMALL_SIZE)
@@ -197,7 +197,7 @@ def main():
         ax = fig.add_subplot(2,2,i+1,projection='3d')
         draw_3d_lines_and_points_ref(range_,rho,azimuth,elevation,translations, yaws, pitchs, rolls,radars,ax=ax,plotting_args=plotting_args)
         ax.set_zlim([0,10])
-        ax.set_title(title,fontsize=20)
+        ax.set_title(title,fontsize=SMALL_SIZE*0.6,weight="bold")
 
     plt.tight_layout(h_pad=2,w_pad=0.3)
     plt.savefig(os.path.join("..","results","images","rollpitchyaw.pdf"),dpi=1600,bbox_inches='tight')

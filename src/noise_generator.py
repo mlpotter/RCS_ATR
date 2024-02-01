@@ -149,36 +149,68 @@ def generate_cov(TraceConstraint,d,N,blocks=1,color="white",noise_method="random
     return covs
 
 def add_noise(X,SNR,cov):
+    """
+    @param X: The RCS numpy array. Number of samples x (Number of radars * Number of frequencies)
+    @param SNR: The signal to noise ratio in dB
+    @param cov: A colored covariance matrix of shape Number of frequencies x Number of frequencies
+    @return: The RCS numpy array + Gaussian Noise
+    """
+    # set the random seed for noise generation reproducibility. Note that although the random seed is constant,
+    # the passed in covariance matrix is not.
     random.seed(123)
     np.random.seed(123)
 
+    # Get the correct dimensions
     N,d = X.shape
 
     if cov is None:
         return X
 
+    # compute the required scaling factor to the covariance martrix to get the desired SNR
+    # Number of samples x ,
     TraceConstraint = (X**2).sum(1) / (10 ** (SNR/10))
+
+    # Number of samples x 1 x 1
     TraceConstraint = np.expand_dims(TraceConstraint,axis=[1,2])
 
-    # Get the sqrt of the matrix such that M@M.T = C, but scale down to have unit trace
+    # Get the sqrt of the unit matrix such that M@M.T = C, but scale down to have unit trace
+    # 1 x Number of Frequencies x Number of Frequencies
     L = np.expand_dims(sqrtm(cov/np.trace(cov)),0)
 
+    # generate gaussian noise
     # noise is M sqrt(Trace Constraint) @ w_k
+    # Number of sample x Number of Frequencies
     noise = np.random.multivariate_normal(np.zeros((d,)), cov=np.eye(d), size=(N,))
+    # Number of sample x Number of Frequencies x 1
     noise = np.expand_dims(noise,axis=[2])
+
+    # Scale the standard normal gaussian by the sqrt of the covariance matrix scaled
+    # np.matmul(L,noise) is Number of samples x Number of Frequencies x 1
+    # final noise is Number of samples x Number of Frequencies
     noise = (np.matmul(L,noise) * np.sqrt(TraceConstraint)).squeeze(-1)
 
+    # add the gaussian noise to the RCS values
     X = X + noise
 
     return X
 
 def add_jitter(X,width,lb,ub):
+    """
+    @param X: The azimuth or elevation numpy array in degrees (any shape)
+    @param width: The uniform lower and upper bounds are [-width/2,width/2]
+    @param lb: The lower bound to clip the azimuth or elevation (in degrees)
+    @param ub: The upper bound to clipy the azimuth or elevation (in degrees)
+    @return:
+    """
+
+    # set the random seed for noise generation reproducibility
     random.seed(123)
     np.random.seed(123)
 
+    # sample uniformly at random azimuth or elevation degree jitter
     jitter = np.random.uniform(-width/2,width/2,size=X.shape)
 
-
+    # clip the azimuth or elevation degree to the prespecified lower and upper bound
     X = np.clip(X + jitter,lb,ub)
 
     return X
@@ -205,31 +237,66 @@ def add_jitter(X,width,lb,ub):
 #
 #     return X
 
-def add_noise_trajectory(X,SNR,cov,n_radars):
-    # X is Number of Trajectores x Number of Time Stpes x (Number of radars * Number of frequencies)
+def add_noise_trajectory(X,SNR,cov):
+    """
+    @param X: The RCS numpy array for trajectories. Number of Trajectories x Number of Time Steps x (Number of radars * Number of frequencies)
+    @param SNR: The signal to noise ratio in dB
+    @param cov: A colored covariance matrix of shape Number of frequencies x Number of frequencies
+    @return: The RCS numpy array + Gaussian Noise
+    """
+    # X is Number of Trajectores x Number of Time Steps x (Number of radars * Number of frequencies)
+
+    # get the nescessary shapes
     N,TN,d = X.shape
-    f = d // n_radars
+
     if cov is None:
         return X
 
+    # the number of unique freqencies
+    f = cov.shape[-1]
+
+    # get the number of radars
+    n_radars = X.shape[-1]//cov.shape[-1]
+
+    # # get the number of frequencies. This is sort of redundant, do not need to pass in n_radars
+    # f = d // n_radars
+
+    # set the random seed for reproducibility. Note that the covariance matrix will lead to different noises generated for MC trials.
     random.seed(123)
     np.random.seed(123)
 
+    # Number of trajectories x Number of time steps x (Number of radars * Number of Frequencies)
     noise = np.zeros_like(X)
 
+    # iterate through the radars
     for i in range(n_radars):
+        # compute the required scaling factor to the covariance martrix to get the desired SNR
+        # Number of trajectories x Number of tiem steps
         TraceConstraint = (X[:,:,i*f : (i+1)*f]**2).sum(-1) / (10 ** (SNR / 10))
+
+        # Number of trajectories x Number of time steps x 1 x 1
         TraceConstraint = np.expand_dims(TraceConstraint, axis=[-2, -1])
 
+        # the sqrt of the unit covariance matrix M such that M@M.T = C
+        # 1 x 1 x Number of frequencies x Number of frequencies
         L = np.expand_dims(sqrtm(cov / np.trace(cov)), [0,1])
 
 
+        # Sample standord normal gaussian noise
+        # Number of trajectories x Number of Time steps x Number of Frequencies
         noise_temp = np.random.multivariate_normal(np.zeros((f,)), cov=np.eye(f), size=(N,TN))
+
+        # Number of trajectories x Number of Time steps x Number of Frequencies x 1
         noise_temp = np.expand_dims(noise_temp, axis=[-1])
+
+        # Scale the standard normal gaussian by the sqrt of the covariance matrix scaled
+        # np.matmul(L,noise) is Number of samples x Number of time steps x  Number of Frequencies x 1
         noise_temp = (np.matmul(L, noise_temp) * np.sqrt(TraceConstraint)).squeeze(-1)
 
+        # assign the noise to the correct radar
         noise[:, :, i*f : (i+1)*f] = noise_temp
 
+    # add the noise of shape Number of trajectories x number of time samples x (Number of radars * frequencies)
     X = X + noise
 
     return X
