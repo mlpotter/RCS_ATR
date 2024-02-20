@@ -37,14 +37,14 @@ import mlflow
 # include standard normalization when appropriate
 def select_model(model_choice):
     if model_choice == "logistic":
-        model = LogisticRegression(n_jobs=-2)
+        model = LogisticRegression(n_jobs=-2,random_state=123)
     elif model_choice == "xgboost":
-        model = XGBClassifier(n_jobs=-2)
+        model = XGBClassifier(n_jobs=-2,random_state=123)
     elif model_choice == "knn":
-        model = KNeighborsClassifier(weights='distance',n_jobs=-2)
+        model = KNeighborsClassifier(weights='distance',n_jobs=-2,random_state=123)
         return model
     elif model_choice == "mlp":
-        model = MLPClassifier(hidden_layer_sizes=(50,50,50))
+        model = MLPClassifier(hidden_layer_sizes=(50,50,50),random_state=123)
     elif model_choice == "empty":
         return None
     else:
@@ -87,6 +87,8 @@ def main(args):
         # initialize empty result arrays for the mc trials
         results = np.zeros((args.MC_Trials,))
         results_single = np.zeros((args.MC_Trials,))
+        results_mc_fuse = np.zeros((args.MC_Trials,))
+        results_mc_single = np.zeros((args.MC_Trials,))
 
         # select the model with/without data standard normalization
         clf = select_model(args.model_choice)
@@ -100,6 +102,7 @@ def main(args):
         # iterate MC trials
         accuracy_time_fuse_avg = 0
         accuracy_time_single_avg = 0
+
         for mc_trial in range(args.MC_Trials):
             print("\n","="*10,f"MC TRIAL {mc_trial}","="*10)
 
@@ -142,7 +145,7 @@ def main(args):
                                                       roll_range=eval(args.roll_range),
                                                       bounding_box=bounding_box,
                                                       TN=args.TN, radars=radars,
-                                                      num_points=200,random_seed=args.random_seed+10*mc_trial,#X_test.shape[0],
+                                                      num_points=2000,random_seed=args.random_seed+10*mc_trial,#X_test.shape[0],
                                                       verbose=False)
 
             # add gaussian noise to RCS at a fixed SNR value.. Note we use a block diagonal matrix (so we assume each radar measure is independent)
@@ -158,11 +161,13 @@ def main(args):
             y_pred,y_pred_history = drc.predict(clf, dataset_multi, fusion_method=args.fusion_method)
             accuracy_distributed = accuracy_score(y_test.ravel(), y_pred.argmax(-1).ravel())
             results[mc_trial] = accuracy_distributed
+            results_mc_fuse[mc_trial] = accuracy_distributed
 
             dataset_multi["n_radars"] = 1
             y_pred_1, y_pred_history_1 = drc.predict(clf, dataset_multi,fusion_method="average")
             accuracy_single = accuracy_score(y_test.ravel(), y_pred_1.argmax(-1).ravel())
             results_single[mc_trial] = accuracy_single
+            results_mc_single[mc_trial] = accuracy_single
 
             print("MC Trials={} Accuracy={:.3f} Accuracy Single={:.3f}".format(mc_trial,accuracy_distributed,accuracy_single))
 
@@ -220,6 +225,8 @@ def main(args):
             # mlflow.log_metrics({"accuracy_single_time": np.array2string(accuracy_time_single,separator=",")})
             mlflow.log_text(np.array2string(accuracy_time_fuse_avg/args.MC_Trials,separator=","),"accuracy_time.txt")
             mlflow.log_text(np.array2string(accuracy_time_single_avg/args.MC_Trials,separator=","),"accuracy_single_time.txt")
+            mlflow.log_text(np.array2string(results_mc_fuse,separator=","),"accuracy_mc_fuse.txt")
+            mlflow.log_text(np.array2string(results_mc_single,separator=","),"accuracy_mc_single.txt")
 
             mlflow.log_artifacts(os.path.join("results","temp"))
 

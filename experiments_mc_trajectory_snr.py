@@ -68,8 +68,8 @@ yaw_range = "np.pi/15"
 pitch_range = "np.pi/20"
 roll_range = "0"
 
-fusion_methods = ["average","fusion","max"]
-experiment_name = "radar_target_recognition_snr_trajectory_nogeometry_avg_seeded"
+fusion_methods = ["average","fusion","max","hardvote","random"]
+experiment_name = "radar_target_recognition_snr_trajectory_nogeometry_final"
 random_seed = 123
 
 

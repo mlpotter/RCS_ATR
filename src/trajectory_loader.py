@@ -272,7 +272,7 @@ def simulate_target_trajectory_azim_elev_multi(time_step_size,vx,yaw_range,pitch
         inv_trans = inverse_translation_matrix(translations[:, t, :])
 
         # get the relative distance between the target and radar in the target coordinate frame
-        # number of simulation points x 4 x 4
+        # number of simulation points x dimension of coordinate (4)  x number of radars
         relative_distances = np.matmul(inv_roll @ inv_pitch @ inv_yaw @ inv_trans, radars.T)
 
         # number of simulate points  x number of radars x dimension of coordinate (4)
@@ -356,7 +356,7 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
         num_points = np.min(drone_sample_counts[drone_sample_counts > 0])
 
         # generate the azimuth and elevations of the target with respect to radar line of sight.
-        # number of trajectories x number of time steps number of radars
+        # number of trajectories x number of time steps x number of radars
         AZ_ts,EL_ts,(Rho_ts,yaw,pitch,roll,translation) = simulate_target_trajectory_azim_elev_multi(time_step_size, vx, yaw_range, pitch_range, roll_range, bounding_box, radars,TN,
                                              N_traj=max(batch_size,num_points))
 
@@ -422,7 +422,7 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
 
 
             # VECTORIZED INDEXING
-            # number of frequencies x (number of valid samples x time steps x number of radars)
+            # number of frequencies x (number of valid samples * time steps * number of radars)
             try:
                 # number of frequencies x (number of valid samples x time steps x number of radars)
                 RCS_indexed = RCS_array.interp(azimuth=xr.DataArray(azimuth_copy.ravel(),dims="points"),
@@ -434,7 +434,7 @@ def RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary,time_step_size,vx,yaw_range,
             # RCS_indexed = RCS_indexed.values.T.reshape(-1,TN,N_freqs*N_radars)
             #
             # number of trajectories x number of time steps x (number of radars * number of frequencies)
-            RCS_indexed = RCS_indexed.values.reshape(N_freqs, *azimuth_copy.shape).transpose(1, 2, 3, 0).reshape(-1,TN,N_freqs*N_radars)
+            RCS_indexed = RCS_indexed.values.reshape(N_freqs, *azimuth_copy.shape).transpose(1, 2, 3, 0).reshape(-1,TN,N_radars*N_freqs)
             # example in RCS_indexed[0][2] for 3 freq, 2 radar, 4 time steps, and 5 samples
             # array(['s1 f1 t3 r1', 's1 f2 t3 r1', 's1 f3 t3 r1', 's1 f1 t3 r2',
             #        's1 f2 t3 r2', 's1 f3 t3 r2'])

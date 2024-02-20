@@ -1,6 +1,6 @@
 
 import numpy as np
-
+from scipy import stats as ss
 
 
 class distributed_classifier(object):
@@ -121,6 +121,15 @@ class distributed_recursive_classifier(object):
             num = predictions.prod(axis=-1)
             den = np.sum(num,axis=-1,keepdims=True)
             predictions = num/den
+
+        elif fusion_method == "hardvote":
+            modes = ss.mode(predictions.argmax(1), axis=1).mode
+            predictions =  np.ones(predictions.shape[:-1]) * 1e-4 * self.n_classes
+            predictions[np.arange(predictions.shape[0]), modes] = 1.0 - (self.n_classes-1)/(self.n_classes) * 1e-4
+
+        elif fusion_method== "random":
+            predictions = np.random.dirichlet(alpha=np.ones(self.n_classes),size=(predictions.shape[0],))
+
         else:
             raise Exception("Not a valid fusion method of multiple radars")
 
@@ -393,6 +402,8 @@ def main():
     _,pred_xgb_history_fuse = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="fusion")
     _,pred_xgb_history_avg = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="average")
     _,pred_xgb_history_max = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="max")
+    _,pred_xgb_history_hardvote = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="hardvote")
+    _,pred_xgb_history_random = drc.predict(clf.models["XGBClassifier"],dataset_multi,fusion_method="random")
 
 
     plt.figure()
@@ -405,18 +416,26 @@ def main():
     xgb_history_max= pred_xgb_history_max.argmax(-1)
     xgb_accuracy_max= (xgb_history_max == dataset_multi["ys"]).mean(0)
 
-    plt.plot(xgb_accuracy_fuse,color="purple",marker="o",linestyle="-")
-    plt.plot(xgb_accuracy_avg,color="purple",marker="+",linestyle="-")
-    plt.plot(xgb_accuracy_max,color="purple",marker="x",linestyle="-")
+
+    xgb_history_hardvote= pred_xgb_history_hardvote.argmax(-1)
+    xgb_accuracy_hardvote= (xgb_history_hardvote == dataset_multi["ys"]).mean(0)
+
+    xgb_history_random =  pred_xgb_history_random.argmax(-1)
+    xgb_accuracy_random= (xgb_history_random == dataset_multi["ys"]).mean(0)
+
+    plt.plot(xgb_accuracy_fuse,color="purple",marker="o",linestyle="-",label=f"XGBoost {n_radars} Fuse")
+    plt.plot(xgb_accuracy_avg,color="purple",marker="+",linestyle="-",label=f"XGBoost {n_radars} Avg")
+    plt.plot(xgb_accuracy_max,color="purple",marker="x",linestyle="-",label=f"XGBoost {n_radars} Max")
+    plt.plot(xgb_accuracy_hardvote,color="purple",marker="*",linestyle="-",label=f"XGBoost {n_radars} Hard")
+    plt.plot(xgb_accuracy_random,color="purple",marker="^",linestyle="-",label=f"XGBoost {n_radars} Random")
+
     plt.ylim([0,1.05])
 
 
 
     plt.ylabel("Accuracy");
     plt.xlabel("Time Step");
-    plt.legend([f"XGBoost {n_radars} Fuse",
-                f"XGBoost {n_radars} Avg",
-                f"XGBoost {n_radars} Max"])
+    plt.legend()
 
     plt.title(f"RBC Fusion - SNR={SNR_constraint}")
     plt.show()

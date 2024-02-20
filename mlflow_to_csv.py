@@ -29,6 +29,14 @@ def get_experiment_df(experiment_name):
             runs.loc[i,"accuracy_single_time"] = mlflow.artifacts.load_text(artifact + "/accuracy_single_time.txt")
         except:
             pass
+        try:
+            runs.loc[i,"accuracy_mc_fuse"] = mlflow.artifacts.load_text(artifact + "/accuracy_mc_fuse.txt")
+        except:
+            pass
+        try:
+            runs.loc[i,"accuracy_mc_single"] = mlflow.artifacts.load_text(artifact + "/accuracy_mc_single.txt")
+        except:
+            pass
 
     return runs
 
@@ -44,7 +52,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='MLFLOW TO EXCEL',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('--experiment_name', default="radar_target_recognition_snr_speed_test",
+    parser.add_argument('--experiment_name', default="radar_target_recognition_joke",
                         help='mlflow experiment name')
 
 
