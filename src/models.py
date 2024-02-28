@@ -124,7 +124,7 @@ class distributed_recursive_classifier(object):
 
         elif fusion_method == "hardvote":
             modes = ss.mode(predictions.argmax(1), axis=1).mode
-            predictions =  np.ones(predictions.shape[:-1]) * 1e-4 * self.n_classes
+            predictions =  np.ones(predictions.shape[:-1]) * 1e-4 / self.n_classes
             predictions[np.arange(predictions.shape[0]), modes] = 1.0 - (self.n_classes-1)/(self.n_classes) * 1e-4
 
         elif fusion_method== "random":
