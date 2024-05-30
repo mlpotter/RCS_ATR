@@ -148,7 +148,7 @@ def generate_cov(TraceConstraint,d,N,blocks=1,color="white",noise_method="random
 
     return covs
 
-def add_noise(X,SNR,cov):
+def add_noise(X,SNR,cov,seed=123):
     """
     @param X: The RCS numpy array. Number of samples x (Number of radars * Number of frequencies)
     @param SNR: The signal to noise ratio in dB
@@ -157,8 +157,8 @@ def add_noise(X,SNR,cov):
     """
     # set the random seed for noise generation reproducibility. Note that although the random seed is constant,
     # the passed in covariance matrix is not.
-    random.seed(123)
-    np.random.seed(123)
+    random.seed(seed)
+    np.random.seed(seed)
 
     # Get the correct dimensions
     N,d = X.shape
@@ -194,7 +194,7 @@ def add_noise(X,SNR,cov):
 
     return X
 
-def add_jitter(X,width,lb,ub):
+def add_jitter(X,width,lb,ub,seed=123):
     """
     @param X: The azimuth or elevation numpy array in degrees (any shape)
     @param width: The uniform lower and upper bounds are [-width/2,width/2]
@@ -204,8 +204,8 @@ def add_jitter(X,width,lb,ub):
     """
 
     # set the random seed for noise generation reproducibility
-    random.seed(123)
-    np.random.seed(123)
+    random.seed(seed)
+    np.random.seed(seed)
 
     # sample uniformly at random azimuth or elevation degree jitter
     jitter = np.random.uniform(-width/2,width/2,size=X.shape)
@@ -237,7 +237,7 @@ def add_jitter(X,width,lb,ub):
 #
 #     return X
 
-def add_noise_trajectory(X,SNR,cov):
+def add_noise_trajectory(X,SNR,cov,seed=12345):
     """
     @param X: The RCS numpy array for trajectories. Number of Trajectories x Number of Time Steps x (Number of radars * Number of frequencies)
     @param SNR: The signal to noise ratio in dB
@@ -262,8 +262,8 @@ def add_noise_trajectory(X,SNR,cov):
     # f = d // n_radars
 
     # set the random seed for reproducibility. Note that the covariance matrix will lead to different noises generated for MC trials.
-    random.seed(123)
-    np.random.seed(123)
+    random.seed(seed)
+    np.random.seed(seed)
 
     # Number of trajectories x Number of time steps x (Number of radars * Number of Frequencies)
     noise = np.zeros_like(X)
@@ -301,7 +301,7 @@ def add_noise_trajectory(X,SNR,cov):
 
     return X
 
-def add_rice_noise(X,SNR,K=2):
+def add_rice_noise(X,SNR,K=2,seed=111):
     # X is Number of Trajectores x Number of Time Stpes x (Number of radars * Number of frequencies)
     # if X.ndim == 3:
     #     N,TN,d = X.shape
@@ -314,8 +314,8 @@ def add_rice_noise(X,SNR,K=2):
     #
     # s = np.sqrt(1 / 2 * (A ** 2) / (K) + zeta ** 2);
 
-    random.seed(123)
-    np.random.seed(123)
+    random.seed(seed)
+    np.random.seed(seed)
 
     A = np.sqrt((K*10**(SNR/10)*X) / ((K+1)*(10**(SNR/10)+1)));
     zeta = np.sqrt((A**2 * (K+1)) / (2*K *10**(SNR/10)));
@@ -334,7 +334,7 @@ def add_rice_noise(X,SNR,K=2):
     return rv.rvs()
 
 
-def add_noise_block(X,SNR,cov,n_radars):
+def add_noise_block(X,SNR,cov,n_radars,seed=321):
     N, d = X.shape
     f = d // n_radars
     if cov is None:
@@ -342,8 +342,8 @@ def add_noise_block(X,SNR,cov,n_radars):
 
     noise = np.zeros((N,d))
 
-    random.seed(123)
-    np.random.seed(123)
+    random.seed(seed)
+    np.random.seed(seed)
 
     for i in range(n_radars):
         TraceConstraint = (X[:,i*f : (i+1)*f]**2).sum(1) / (10 ** (SNR / 10))

@@ -28,6 +28,7 @@ from xgboost import XGBClassifier
 import os
 import sys
 import contextlib
+from time import time
 
 import argparse
 
@@ -35,7 +36,7 @@ import mlflow
 
 # select which scikit learn ML model to use
 # include standard normalization when appropriate
-def select_model(model_choice):
+def select_model(model_choice,args):
     if model_choice == "logistic":
         model = LogisticRegression(n_jobs=-2,random_state=123)
     elif model_choice == "xgboost":
@@ -91,7 +92,7 @@ def main(args):
         results_mc_single = np.zeros((args.MC_Trials,))
 
         # select the model with/without data standard normalization
-        clf = select_model(args.model_choice)
+        clf = select_model(args.model_choice,args)
 
 
         # generate unit trace covariance matrix for single radar scenario
@@ -114,10 +115,10 @@ def main(args):
                                                          method=args.single_method,random_seed=args.random_seed+10*mc_trial)
 
             # add gaussian noise to RCS at a fixed SNR value
-            dataset_single["RCS"] = add_noise(dataset_single["RCS"],args.SNR_constraint,covs_single[mc_trial])
+            dataset_single["RCS"] = add_noise(dataset_single["RCS"],args.SNR_constraint,covs_single[mc_trial],seed=123)
             # add the AZ/EL jitter noise to the data
-            dataset_single["azimuth"] = add_jitter(dataset_single["azimuth"],args.azimuth_jitter_width,eval(args.azimuth_jitter_bounds.split("_")[0]),eval(args.azimuth_jitter_bounds.split("_")[1]))
-            dataset_single["elevation"] = add_jitter(dataset_single["elevation"],args.elevation_jitter_width,eval(args.elevation_jitter_bounds.split("_")[0]),eval(args.elevation_jitter_bounds.split("_")[1]))
+            dataset_single["azimuth"] = add_jitter(dataset_single["azimuth"],args.azimuth_jitter_width,eval(args.azimuth_jitter_bounds.split("_")[0]),eval(args.azimuth_jitter_bounds.split("_")[1]),seed=123)
+            dataset_single["elevation"] = add_jitter(dataset_single["elevation"],args.elevation_jitter_width,eval(args.elevation_jitter_bounds.split("_")[0]),eval(args.elevation_jitter_bounds.split("_")[1]),seed=321)
 
             # split into train-test data dictionaries
             # dataset_train,dataset_test = dataset_train_test_split(dataset_single)
@@ -127,7 +128,10 @@ def main(args):
             # X_test,y_test = dataset_to_tensor(dataset_test,args.geometry)
 
             # fit single radar CLF
+            time_train = time()
             clf.fit(X_train, y_train.ravel())
+            time_train = time() - time_train
+            print("Train Time: ",time_train)
 
             # get the accuracy of a single radar on balanced dataset
             # y_pred = clf.predict(X_test)
@@ -145,20 +149,25 @@ def main(args):
                                                       roll_range=eval(args.roll_range),
                                                       bounding_box=bounding_box,
                                                       TN=args.TN, radars=radars,
-                                                      num_points=2000,random_seed=args.random_seed+10*mc_trial,#X_test.shape[0],
+                                                      num_points=2000,random_seed=args.random_seed+10*mc_trial+100,#X_test.shape[0],
                                                       verbose=False)
 
             # add gaussian noise to RCS at a fixed SNR value.. Note we use a block diagonal matrix (so we assume each radar measure is independent)
-            dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"], args.SNR_constraint, covs_single[mc_trial])
+            dataset_multi["RCS"] = add_noise_trajectory(dataset_multi["RCS"], args.SNR_constraint, covs_single[mc_trial],seed=321)
 
             # add the AZ/EL jitter noise to the data
-            dataset_multi["azimuth"] = add_jitter(dataset_multi["azimuth"],args.azimuth_jitter_width,eval(args.azimuth_jitter_bounds.split("_")[0]),eval(args.azimuth_jitter_bounds.split("_")[1]))
-            dataset_multi["elevation"] = add_jitter(dataset_multi["elevation"],args.elevation_jitter_width,eval(args.elevation_jitter_bounds.split("_")[0]),eval(args.elevation_jitter_bounds.split("_")[1]))
+            dataset_multi["azimuth"] = add_jitter(dataset_multi["azimuth"],args.azimuth_jitter_width,eval(args.azimuth_jitter_bounds.split("_")[0]),eval(args.azimuth_jitter_bounds.split("_")[1]),seed=12345)
+            dataset_multi["elevation"] = add_jitter(dataset_multi["elevation"],args.elevation_jitter_width,eval(args.elevation_jitter_bounds.split("_")[0]),eval(args.elevation_jitter_bounds.split("_")[1]),seed=54321)
 
             drc = distributed_recursive_classifier(dataset_multi["n_classes"], use_geometry=args.geometry)
 
             _,y_test = dataset_to_tensor(dataset_multi,args.geometry)
+
+            time_test = time()
             y_pred,y_pred_history = drc.predict(clf, dataset_multi, fusion_method=args.fusion_method)
+            time_test = time()-time_test
+            print("Test Time: ",time_test)
+
             accuracy_distributed = accuracy_score(y_test.ravel(), y_pred.argmax(-1).ravel())
             results[mc_trial] = accuracy_distributed
             results_mc_fuse[mc_trial] = accuracy_distributed

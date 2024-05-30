@@ -700,10 +700,10 @@ def main():
     mpl.use('Qt5Agg')
 
     TN = 50
-    N_traj = 100
-    time_step_size = 0.1
+    N_traj = 10
+    time_step_size = 0.25
     vx = 50
-    yaw_range , pitch_range , roll_range = np.pi/10,np.pi/15,np.pi/15
+    yaw_range , pitch_range , roll_range = 0,0,0
     xlim = [-50, 50];  ylim = [-50, 50]; zlim = [150, 300]
     bounding_box = np.array([xlim,ylim,zlim])
     num_radars = 4
@@ -724,8 +724,11 @@ def main():
     fig = plt.figure(figsize=(16, 16))
     n_axes = 1
 
+    radars = radar_grid(n_radars=num_radars,xlim=xlim,ylim=ylim)
+
     for i in range(n_axes):
         ax = fig.add_subplot(1,n_axes,i+1, projection = '3d')  # you can adjust the size as per your requirement
+
 
         yaw = yaw_matrix(yaws[i])
         pitch = pitch_matrix(pitchs[i])
@@ -734,11 +737,15 @@ def main():
 
         for j in range(TN):
             plot_target_frames(ax,trans[[j]],yaw[[j]],pitch[[j]],roll[[j]],length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
+
+        ax.plot(radars[0,0],radars[0,1],'ro')
         ax.set_ylabel("Y")
         ax.set_xlabel("X")
         ax.set_zlabel("Z")
         ax.set_title(f"Traj {i}")
         ax.axis('equal')
+        ax.view_init(10, -5,0)
+
     plt.show()
 
     DRONE_RCS_FOLDER =  "../Drone_RCS_Measurement_Dataset"
@@ -770,9 +777,11 @@ def main():
     #     np.zeros((num_radars,))
     # ))
 
-    radars = radar_grid(n_radars=num_radars,xlim=xlim,ylim=ylim)
+    # set the random seed for data reproducibility
+    np.random.seed(123)
+    random.seed(123)
 
-    AZs,ELs,_ = simulate_target_trajectory_azim_elev_multi(time_step_size, vx, yaw_range, pitch_range, roll_range, bounding_box,
+    AZs,ELs,(Rho_ts,yaws,pitchs,rolls,translations)= simulate_target_trajectory_azim_elev_multi(time_step_size, vx, yaw_range, pitch_range, roll_range, bounding_box,
                                                radars, TN, N_traj)
 
     dataset_multi = RCS_TO_DATASET_Trajectory(RCS_xarray_dictionary=drone_rcs_dictionary,
@@ -782,31 +791,92 @@ def main():
                                                num_points=N_traj,
                                                verbose=True)
 
+
+
     # plot a mapping of azimuth and elevation to RCS
-    sample_idx = 105
-    fig,axes = plt.subplots(1,3,figsize=(15,5))
-    axes[0].plot(dataset_multi["RCS"][sample_idx,:,0].ravel(),'b-')
+    sample_idx = 4
+    frames = []
+    for t in tqdm(range(TN)):
+        fig, axes = plt.subplots(1, 4, figsize=(20, 5))
 
-    axes[0].plot(drone_rcs_dictionary[dataset_multi["ys"][sample_idx].item()].interp(azimuth=xr.DataArray(dataset_multi["azimuth"][sample_idx,:,0],dims="points1"),
-                                                                                     elevation=xr.DataArray(dataset_multi["elevation"][sample_idx,:,0],dims="points1")).loc[26].values,',r--')
-    axes[0].set_title("RCS")
-    axes[1].plot(dataset_multi["azimuth"][sample_idx,:,0].ravel())
-    axes[1].plot(dataset_multi["elevation"][sample_idx,:,0].ravel())
-    axes[1].legend(["Azimuth","Elevation"])
-    axes[1].set_title("Target Orientation")
+        axes[0].plot(dataset_multi["RCS"][sample_idx,:t+1,0].ravel(),'b-')
 
-    temp_data = 10 * np.log10(drone_rcs_dictionary[dataset_multi["ys"][sample_idx].item()].loc[26])
-    vmax = np.max(temp_data)*1.5
-    vmin = np.min(temp_data)*0.5
-    xr.plot.imshow(temp_data,vmin=vmin,vmax=vmax,ax=axes[2],cmap="jet")
-    axes[2].plot(dataset_multi["elevation"][sample_idx,:,0].ravel(),dataset_multi["azimuth"][sample_idx,:,0].ravel(),linewidth=5,color="k")
-    axes[2].plot(dataset_multi["elevation"][sample_idx,0,0].ravel(),dataset_multi["azimuth"][sample_idx,0,0].ravel(),markersize=20,color="purple",marker="*")
-    axes[2].plot(dataset_multi["elevation"][sample_idx,-1,0].ravel(),dataset_multi["azimuth"][sample_idx,-1,0].ravel(),markersize=20,color="purple",marker="o")
-    plt.show()
+        axes[0].plot(drone_rcs_dictionary[dataset_multi["ys"][sample_idx].item()].interp(azimuth=xr.DataArray(dataset_multi["azimuth"][sample_idx,:t+1,0],dims="points1"),
+                                                                                         elevation=xr.DataArray(dataset_multi["elevation"][sample_idx,:t+1,0],dims="points1")).loc[26].values,',r--')
+        axes[0].set_title("RCS")
+        axes[0].set_xlabel("Time Step")
+
+        axes[1].plot(dataset_multi["azimuth"][sample_idx,:t+1,0].ravel())
+        axes[1].plot(dataset_multi["elevation"][sample_idx,:t+1,0].ravel())
+        axes[1].legend(["Azimuth","Elevation"])
+        axes[1].set_title("Target Orientation")
+        axes[1].set_xlabel("Time Step")
+
+        temp_data = 10 * np.log10(drone_rcs_dictionary[dataset_multi["ys"][sample_idx].item()].loc[26])
+        vmax = np.max(temp_data)*1.5
+        vmin = np.min(temp_data)*0.5
+        map = xr.plot.imshow(temp_data,vmin=vmin,vmax=vmax,ax=axes[2],cmap="jet")
+        axes[2].plot(dataset_multi["elevation"][sample_idx,:t+1,0].ravel(),dataset_multi["azimuth"][sample_idx,:t+1,0].ravel(),linewidth=5,color="k")
+        axes[2].plot(dataset_multi["elevation"][sample_idx,0,0].ravel(),dataset_multi["azimuth"][sample_idx,0,0].ravel(),markersize=20,color="purple",marker="o")
+        axes[2].plot(dataset_multi["elevation"][sample_idx,t,0].ravel(),dataset_multi["azimuth"][sample_idx,t,0].ravel(),markersize=20,color="purple",marker="*")
+
+
+
+
+        ax = fig.add_subplot(1,4,4, projection = '3d')  # you can adjust the size as per your requirement
+
+        yaw = yaw_matrix(dataset_multi["yaws"][sample_idx])
+        pitch = pitch_matrix(dataset_multi["pitchs"][sample_idx])
+        roll = roll_matrix(dataset_multi["rolls"][sample_idx])
+        trans = translation_matrix(dataset_multi["translations"][sample_idx])
+
+        for j in range(t+1):
+            plot_target_frames(ax,trans[[j]],yaw[[j]],pitch[[j]],roll[[j]],length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
+
+        ax.plot(radars[0,0],radars[0,1],'ro')
+        ax.axis('equal')
+        ax.view_init(10, -5,0)
+
+
+        fig.savefig(os.path.join("tmp_images",f"example_trajectory{t}.jpg"))
+
+        frames.append(imageio.imread(os.path.join("tmp_images",f"example_trajectory{t}.jpg")))
+        # axes[0].cla()
+        # axes[1].cla()
+        # axes[2].cla()
+        # del map
+        # axes[3].cla()
+        plt.close()
+
+    # Save frames as a GIF
+    gif_filename = os.path.join("..","results","example_trajectory.gif")
+    imageio.mimsave(gif_filename, frames, loop=5,duration=0.5)  # Adjust duration as needed
+
+
 
     print("MULTI")
     add_noise_trajectory(dataset_multi["RCS"],SNR=SNR,cov=covs_single[0])
     simulate_target_gif(time_step_size, vx, yaw_range, pitch_range, roll_range, bounding_box, radars, TN,plotting_args=plotting_args)
 
+
+    # fig = plt.figure(figsize=(16, 16))
+    #
+    # ax = fig.add_subplot(1,1,1, projection = '3d')  # you can adjust the size as per your requirement
+    #
+    # yaw = yaw_matrix(dataset_multi["yaws"][0])
+    # pitch = pitch_matrix(dataset_multi["pitchs"][0])
+    # roll = roll_matrix(dataset_multi["rolls"][0])
+    # trans = translation_matrix(dataset_multi["translations"][0])
+    #
+    # print(yaw)
+    #
+    # for j in range(TN):
+    #     plot_target_frames(ax,trans[[j]],yaw[[j]],pitch[[j]],roll[[j]],length=plotting_args["arrow_length"],linewidth=plotting_args["arrow_linewidth"])
+    #
+    # ax.plot(radars[0,0],radars[0,1],'ro')
+    #
+    # plt.show()
+
+    # plt.show()
 if __name__ == "__main__":
     main()

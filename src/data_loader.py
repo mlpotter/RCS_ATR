@@ -603,20 +603,22 @@ def dataset_train_test_split(dataset,test_size=0.2):
 
     return dataset_train,dataset_test
 
-def visualize_RCS_dictionary(drone_rcs_dictionary,smooth_images=False,save_images=False):
+def visualize_RCS_dictionary(drone_rcs_dictionary,label_encoder,smooth_images=False,save_images=False):
 
     for drone_name, RCS_array in drone_rcs_dictionary.items():
         # Assuming 'f[GHz]' are categories you want to filter on for each subplot
 
         # Creating 4x2 subplots
         # hardcoded.. should dynamically change
-        fig, axs = plt.subplots(3, 5, figsize=(31, 16))  # you can adjust the size as per your requirement
+        fig, axs = plt.subplots(3, 5, figsize=(45,21))  # you can adjust the size as per your requirement
 
         # Flatten the 4x2 array to easily iterate over it
         axs = axs.flatten()
 
         unique_frequencies = RCS_array.coords["f[GHz]"].values
         print(f"{drone_name}")
+        drone_name_str = label_encoder.inverse_transform([drone_name]).item()
+
         for i, (frequency, ax) in enumerate(zip(unique_frequencies, axs), 1):
             # Filter data for each unique 'f[GHz]'
             RCS_frequency = RCS_array.loc[frequency,:,:]
@@ -625,17 +627,26 @@ def visualize_RCS_dictionary(drone_rcs_dictionary,smooth_images=False,save_image
             print("@{}GHz Min RCS {:0.3f} , Max RCS {:.3f}".format(frequency,RCS_min, RCS_max))
 
             # image
-            xr.plot.imshow(RCS_frequency,cmap="jet",ax=ax,vmin=RCS_frequency.quantile(0.05),vmax=RCS_max,cbar_kwargs={"label":'RCS [dB]'})
-            ax.set_title(f'Plot for f[GHz]={frequency}')
+            im = xr.plot.imshow(RCS_frequency,cmap="jet",ax=ax,vmin=RCS_frequency.quantile(0.05),add_labels=False,vmax=RCS_max,add_colorbar=False)
+            cb = plt.colorbar(im, orientation="vertical", pad=0.01)
+            cb.set_label(label='RCS [dBm$^2$]', size=35)
+            cb.ax.tick_params(labelsize=30)             #cbar_kwargs={"label":'RCS [dBm^2]'})
+            ax.set_title(f'Plot for f[GHz]={frequency}',fontsize=35)
+            ax.set_xlabel("elevation [degree]",fontsize=35)
+            ax.set_ylabel("azimuth [degree]",fontsize=35)
+            plt.sca(ax)
+            plt.xticks(fontsize=30,rotation=45)
+            plt.yticks(fontsize=30)
+
         print()
 
         #
-        plt.suptitle(drone_name)
+        plt.suptitle(drone_name_str,fontsize=40,weight='bold')
         # Adjust layout to prevent overlap
         plt.tight_layout()
         # Show the plot
         if save_images:
-            plt.savefig(os.path.join("..\Drone_RCS_Measurement_Dataset",drone_name + ".pdf"), format="pdf", bbox_inches="tight")
+            plt.savefig(os.path.join("..\Drone_RCS_Measurement_Dataset",drone_name_str + ".pdf"), format="pdf", bbox_inches="tight")
         plt.show(block=False)
 
     if smooth_images:
@@ -691,12 +702,12 @@ def visualize_RCS_dictionary(drone_rcs_dictionary,smooth_images=False,save_image
             plt.show(block=False)
 
 def main():
-    visualize = False
+    visualize = True
     DRONE_RCS_FOLDER =  "../Drone_RCS_Measurement_Dataset"
     drone_rcs_dictionary,label_encoder = DRONE_RCS_CSV_TO_XARRAY(DRONE_RCS_FOLDER,visualize=False,verbose=True)
 
     if visualize:
-        visualize_RCS_dictionary(drone_rcs_dictionary)
+        visualize_RCS_dictionary(drone_rcs_dictionary,label_encoder,save_images=True)
 
     xlim = [-10, 10];  ylim = [-10, 10]; zlim = [50, 150]
     bounding_box = np.array([xlim,ylim,zlim])
@@ -732,14 +743,14 @@ def main():
     dataset = RCS_TO_DATASET_Single_Point(drone_rcs_dictionary,azimuth_center=90,azimuth_spread=180,elevation_center=0,elevation_spread=190,num_points=num_points,method="random")
 
 
-    if visualize == True:
-        plt.figure()
-        RCS_class_0 = dataset["RCS"][dataset["ys"].ravel()==0]
-        az_class_0 = dataset["azimuth"][dataset["ys"].ravel()==0]
-        el_class_0 = dataset["elevation"][dataset["ys"].ravel()==0]
-
-        plt.scatter(el_class_0,az_class_0,c=RCS_class_0[:,0])
-        plt.show()
+    # if visualize == True:
+    #     plt.figure()
+    #     RCS_class_0 = dataset["RCS"][dataset["ys"].ravel()==0]
+    #     az_class_0 = dataset["azimuth"][dataset["ys"].ravel()==0]
+    #     el_class_0 = dataset["elevation"][dataset["ys"].ravel()==0]
+    #
+    #     plt.scatter(el_class_0,az_class_0,c=RCS_class_0[:,0])
+    #     plt.show()
 
 
 

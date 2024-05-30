@@ -2,6 +2,8 @@
 import numpy as np
 from scipy import stats as ss
 
+from  time import time
+
 
 class distributed_classifier(object):
     def __init__(self,clf,use_geometry=False):
@@ -43,6 +45,20 @@ class distributed_classifier(object):
 
         return predictions
 
+def correlator_classifer(object):
+
+    def __init__(self,snr,window_size=5):
+        self.window = window_size
+        self.snr = self.snr
+
+    def fit(self,x,y):
+        pass
+
+    def predict(self,X,y=None):
+        pass
+
+
+
 class distributed_recursive_classifier(object):
     def __init__(self,n_classes,use_geometry=False):
         """
@@ -81,7 +97,7 @@ class distributed_recursive_classifier(object):
         elevation = dataset["elevation"][:,t,:]
 
         # number of target class labels
-        n_classes = len(np.unique(dataset["ys"]))
+        n_classes = dataset['n_classes'] #len(np.unique(dataset["ys"]))
 
         # initialize empty array to hold all predictions across samples and radars
         # Number of trajectories x Number of Classes x Number of Radars
@@ -158,6 +174,8 @@ class distributed_recursive_classifier(object):
 
         # iterate through every time step of the trajectory
         for t in np.arange(N_time):
+            # fit single radar CLF
+            # time_train = time()
 
             # Number of Trajectories x Number of Classes
             # get the instant bayesian fused discrimination classification p(c|z_t)
@@ -180,6 +198,9 @@ class distributed_recursive_classifier(object):
 
             # the current posterior becomes the next prior
             p_c_given_past = p_c_given_all
+
+            # time_train = time() - time_train
+            # print("INSTSAANT FUSE Time: ", time_train)
 
         return p_c_given_all,p_c_over_time
 
