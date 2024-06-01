@@ -462,7 +462,7 @@ def main():
     plt.show()
 
     if make_gif:
-        target_with_predictions_gif(dataset_multi,pred_xgb_history_fuse,radars,plotting_args=plotting_args)
+        target_with_predictions_gif(dataset_multi,pred_xgb_history_fuse,radars,label_encoder=label_encoder,plotting_args=plotting_args)
 
 
 if __name__ == "__main__":

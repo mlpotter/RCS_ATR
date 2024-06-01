@@ -6,6 +6,7 @@ from mlflow.tracking import MlflowClient
 import mlflow
 from subprocess import Popen
 import pdb
+from time import sleep
 
 
 def get_experiment_df(experiment_name):
@@ -57,8 +58,8 @@ snr_constraints = [-20.0,-10.0,0.0,10.0,20.0]
 
 # noises = [("white","random"),("white","constant"),("color","random")]
 noises = [("color","random")]
-# jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(80.0,80.0)]
-jitter_widths = [(0.0,0.0)]#,(10.0,10.0)]
+jitter_widths = [(0.0,0.0),(10.0,10.0),(20.0,20.0),(50.0,50.0),(80.0,80.0)] # with geometry
+# jitter_widths = [(0.0,0.0)] # no geometry
 
 # Trajectory Parameters
 TN = 100
@@ -69,11 +70,12 @@ pitch_range = "np.pi/20"
 roll_range = "0"
 
 fusion_methods = ["average","fusion","max","hardvote","random"]
-experiment_name = "radar_target_recognition_snr_trajectory_nogeometry_final_again"
+experiment_name = "radar_target_recognition_snr_trajectory_geometry_final_again"
 random_seed = 123
 
 
-geometry_use = "no-geometry"
+# geometry_use = "no-geometry" # no geometry
+geometry_use = "geometry" # user geometry
 mlflow_track = "mlflow_track"
 
 previous_runs = get_experiment_df(experiment_name)
@@ -140,3 +142,4 @@ if __name__ == "__main__":
                                             file_full = f"python main_mc_trajectory_SNR.py {file}"
                                             print(f"sbatch execute.bash '{file_full}'")
                                             Popen(f"sbatch execute.bash '{file_full}'",shell=True)
+                                            sleep(0.1)

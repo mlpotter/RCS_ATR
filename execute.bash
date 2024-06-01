@@ -11,7 +11,7 @@
 #number of cores you are requesting
 #SBATCH --cpus-per-task=20
 #memory you are requesting
-#SBATCH --mem=3Gb
+#SBATCH --mem=16Gb
 #partition to use
 #SBATCH --partition=short
 

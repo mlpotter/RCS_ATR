@@ -561,7 +561,7 @@ def simulate_target_gif(time_step_size,vx,yaw_range,pitch_range,roll_range,bound
         for filename in glob.glob(os.path.join(photo_dump,"frame_*")):
             os.remove(filename)
 
-def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow_length": 15, "arrow_linewidth": 2}):
+def target_with_predictions_gif(dataset,predictions,radars,label_encoder,plotting_args={"arrow_length": 15, "arrow_linewidth": 2}):
     fig = plt.figure(figsize=(28,7))
     ax1 = fig.add_subplot(1, 4, 1, projection='3d')
     ax2 = fig.add_subplot(1, 4, 2)
@@ -631,8 +631,9 @@ def target_with_predictions_gif(dataset,predictions,radars,plotting_args={"arrow
         ax2.set_ylim([0,1.05])
         ax2.set_ylabel("Class Prediction Probability",fontsize=20,weight="bold")
         ax2.set_xlabel(f"Time ({dataset['time_step_size']} resolution [s])",fontsize=20,weight="bold")
-        ax2.set_title(f"True Label {int(dataset['ys'][0].item())}",fontsize=20,weight="bold")
-        ax2.legend([f"Drone {i}" for i in np.arange(dataset["n_classes"])],fontsize=30,prop={"weight":"bold"})
+        true_label = label_encoder.inverse_transform([int(dataset['ys'][0].item())]).item()
+        ax2.set_title(f"True Label {true_label}",fontsize=20,weight="bold")
+        ax2.legend([f"{label_encoder.inverse_transform([i]).item()}" for i in np.arange(dataset["n_classes"])],fontsize=30,prop={"weight":"bold"})
         ax2.tick_params(axis='both', which='major', labelsize=15)
         ax2.tick_params(axis='both', which='minor', labelsize=15)
 

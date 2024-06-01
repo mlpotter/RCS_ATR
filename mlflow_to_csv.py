@@ -42,7 +42,7 @@ def get_experiment_df(experiment_name):
 
 def main(args):
     runs = get_experiment_df(args.experiment_name)
-
+    print("Number of runs: ",runs.shape[0])
     runs.to_csv(os.path.join("results",args.experiment_name+".csv"),index=False)
 
 if __name__ == "__main__":
