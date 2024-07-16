@@ -31,6 +31,7 @@ import os
 import sys
 import contextlib
 from time import time
+from tqdm import tqdm
 
 import argparse
 
@@ -184,15 +185,16 @@ def main(args):
 
         # time the distributed recursive classifier prediction time on single instance
 
+        dataset_multi["n_radars"] = args.n_radars
         n_traj = dataset_multi["RCS"].shape[0]
         time_dataset = 0
-        for i in range(n_traj):
+        for i in tqdm(range(n_traj)):
             dataset_individual =  {"RCS":dataset_multi["RCS"][[i]],
                                    "azimuth":dataset_multi["azimuth"][[i]],
                                     "elevation":dataset_multi["elevation"][[i]],
                                     "rho":dataset_multi["rho"][[i]],
                                     "ys": dataset_multi["ys"][[i]],
-                                    "n_radars":dataset_multi["n_radars"],
+                                    "n_radars":dataset_multi["n_radars"], #dataset_multi["n_radars"],
                                     "n_freq":dataset_multi["n_freq"],
                                     "yaws":dataset_multi["yaws"][[i]],
                                     "pitchs":dataset_multi["pitchs"][[i]],
@@ -207,7 +209,8 @@ def main(args):
             time_dataset += time_test
 
         time_dataset = time_dataset / n_traj
-        print("MC Trials={} Inference Time={:.7f}".format(mc_trial,time_dataset))
+        print("MC Trials={} Inference Time per Trajectory={:.7f}".format(mc_trial,time_dataset))
+        print("MC Trials={} Inference Time per Timestep={:.7f}".format(mc_trial,time_dataset/dataset_multi["TN"]))
 
 
         accuracy_time_fuse = (y_pred_history.argmax(-1) == dataset_multi["ys"]).mean(0)
@@ -224,7 +227,8 @@ def main(args):
     print("Multi Radar Accuracy:", results.mean())
     print("Single Radar Accuracy:", results_single.mean())
     print("Average model memory complexity:",memory_avg/args.MC_Trials)
-    print("Average model time complexity:",time_avg)
+    print("Average model time complexity per trajectory:",time_avg/args.MC_Trials)
+    print("Average model time complexity per timestep:",time_avg/args.MC_Trials/dataset_multi["TN"])
 
 
 if __name__ == "__main__":

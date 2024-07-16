@@ -1,9 +1,9 @@
 
 import numpy as np
 from scipy import stats as ss
-
+from joblib import Parallel,delayed
 from  time import time
-
+import os
 
 class distributed_classifier(object):
     def __init__(self,clf,use_geometry=False):
@@ -57,7 +57,36 @@ def correlator_classifer(object):
     def predict(self,X,y=None):
         pass
 
+def predict_multiradar(predict_proba,RCS,azimuth,elevation,use_geometry):
 
+
+    # Number of trajectories x Number of Frequencies
+    X = RCS
+
+    # if True, append the azimuth and elevation to the input feature X
+    # Number of trajectories x (Number of Frequencies + 2)
+    if use_geometry:
+        azimuth_i = azimuth
+        elevation_i = elevation
+        X = np.hstack((X, azimuth_i, elevation_i))
+
+    # Have the individual ML model make a prediction
+    # number of trajectories x number of classes
+    y_pred = predict_proba(X)
+
+    return y_pred
+
+
+# # Number of trajectories x Numbber of Classes
+# predictions = self.parallel(
+#                     delayed(predict_multiradar)(clf.predict_proba,
+#                                                        RCS=RCS[:,(i*n_freq):((i+1)*n_freq)],
+#                                                        azimuth=azimuth[:, [i]],
+#                                                        elevation= elevation[:, [i]],
+#                                                        use_geometry=self.use_geometry) for i in range(n_radars)
+#                     )
+#
+# predictions = np.stack(predictions,axis=-1)
 
 class distributed_recursive_classifier(object):
     def __init__(self,n_classes,use_geometry=False):
@@ -74,6 +103,9 @@ class distributed_recursive_classifier(object):
         # assume marginal distribution p(c) and prior p(c) is 1/|C|
         self.pc = 1/self.n_classes
 
+        self.cpu_count = os.cpu_count()
+
+        # self.parallel = Parallel(n_jobs=self.cpu_count-2,prefer='threads')
     def predict_instant(self,clf,dataset,t=0,fusion_method="average"):
         """
         @param clf: the ML model as a scikit-learn object
@@ -104,26 +136,49 @@ class distributed_recursive_classifier(object):
         predictions = np.zeros((RCS.shape[0],n_classes,n_radars))
 
         # Iterate through each radar to make a individual prediction
+        # for i in range(n_radars):
+        #
+        #     # subset the RCS values corresponding to the one radar.
+        #     # Number of trajectories x Number of Frequencies
+        #     X = RCS[:,(i*n_freq):((i+1)*n_freq)]
+        #
+        #     # if True, append the azimuth and elevation to the input feature X
+        #     # Number of trajectories x (Number of Frequencies + 2)
+        #     if self.use_geometry:
+        #         azimuth_i = azimuth[:, [i]]
+        #         elevation_i = elevation[:, [i]]
+        #         X = np.hstack((X,azimuth_i,elevation_i))
+        #
+        #     # Have the individual ML model make a prediction
+        #     # number of trajectories x number of classes
+        #     y_pred = clf.predict_proba(X)
+        #
+        #     # save the radar prediction for all the trajectories at time step t
+        #     # Number of trajectories x Numbber of Classes
+        #     predictions[:,:,i] = y_pred
+        X = np.zeros((n_radars*RCS.shape[0],n_freq+self.use_geometry*2))
         for i in range(n_radars):
 
             # subset the RCS values corresponding to the one radar.
-            # Number of trajectories x Number of Frequencies
-            X = RCS[:,(i*n_freq):((i+1)*n_freq)]
+            # Number of (trajectories * number of radars) x Number of Frequencies
+            xi = RCS[:,(i*n_freq):((i+1)*n_freq)]
 
             # if True, append the azimuth and elevation to the input feature X
             # Number of trajectories x (Number of Frequencies + 2)
             if self.use_geometry:
                 azimuth_i = azimuth[:, [i]]
                 elevation_i = elevation[:, [i]]
-                X = np.hstack((X,azimuth_i,elevation_i))
+                xi = np.hstack((xi,azimuth_i,elevation_i))
 
-            # Have the individual ML model make a prediction
-            # number of trajectories x number of classes
-            y_pred = clf.predict_proba(X)
+            X[i*RCS.shape[0]:(i+1)*RCS.shape[0],:] = xi
 
-            # save the radar prediction for all the trajectories at time step t
-            # Number of trajectories x Numbber of Classes
-            predictions[:,:,i] = y_pred
+        # Have the individual ML model make a prediction
+        # number of (trajectories * number of radars) x number of classes
+        y_pred = clf.predict_proba(X)
+
+        # reshape
+        for i in range(n_radars):
+            predictions[:,:,i] = y_pred[i*RCS.shape[0]:(i+1)*RCS.shape[0],:]
 
         # basec on the fusion method we take a soft-vote, maximum, or bayesian fusion
         if fusion_method == "average":
