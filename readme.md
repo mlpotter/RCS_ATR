@@ -90,14 +90,14 @@ The first thrust of the FREEDOM project task 2.2.2 focused on Bayesian inference
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-To run a basic example of 3 radars tracking 4 targets over 1000 time steps, with the radars maintaining a distance of 125 meters from the targets.
+To run a basic example of 4 radars recursively classifying a targets over 100 time steps.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ```bash
 # change to the folders related to mobile radars
 cd RCS_ATR
 
-python main_expectation.py --mlflow_track \
+python main_mc_trajectory_SNR.py --mlflow_track \
                            --experiment_name=radar_target_recognition_joke \
                            --SNR_constraint=-20 \
                            --model_choice=logistic \
