@@ -255,7 +255,7 @@ if __name__ == "__main__":
 
     # Drone PARAMETERS / Trajectory Parameters
     parser.add_argument('--TN', default=20,type=int, help='Number of time steps for the experiment')
-    parser.add_argument('--vx', default=50,type=int, help='The Velocity of the Drone in the forward direction')
+    parser.add_argument('--vx', default=50,type=float, help='The Velocity of the Drone in the forward direction')
     parser.add_argument('--yaw_range', default="np.pi/8",type=str, help='The yaw std of the random drone walk')
     parser.add_argument('--pitch_range', default="np.pi/15",type=str, help='The pitch std of the random drone walk')
     parser.add_argument('--roll_range', default="0",type=str, help='The roll std of the random drone walk')
